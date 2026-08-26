@@ -30,7 +30,7 @@ export class SceneManager {
     this.keyLight.position.set(5, 8, 4);
     this.fillLight = new THREE.DirectionalLight(0xbfd0ff, 1.2);
     this.fillLight.position.set(-5, -2, -6);
-    this.headLight = new THREE.DirectionalLight(0xffffff, 0);
+    this.headLight = new THREE.DirectionalLight(0xffffff, 2.5);
     this.headLight.position.set(0, 0, 1);
     this.camera.add(this.headLight);
     this.scene.add(this.camera);

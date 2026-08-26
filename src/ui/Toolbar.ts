@@ -16,6 +16,11 @@ const TEMPLATE = `
   <button id="btn-ball" class="seg-btn">球面</button>
   <button id="btn-arc" class="seg-btn active">弧球</button>
 </div>
+<div class="seg">
+  <button id="btn-diag-none" class="seg-btn active">无</button>
+  <button id="btn-diag-zebra" class="seg-btn">斑马纹</button>
+  <button id="btn-diag-curv" class="seg-btn">曲率</button>
+</div>
 <label class="chip"><input type="checkbox" id="chk-headlight" checked /><span>头灯</span></label>
 <label class="chip"><input type="checkbox" id="chk-navgizmo" checked /><span>视向轴</span></label>
 <span class="sep"></span>
@@ -75,6 +80,23 @@ export class Toolbar {
     q<HTMLInputElement>('#chk-headlight').addEventListener('change', (e) =>
       bus.emit('set-headlight', { on: (e.target as HTMLInputElement).checked }),
     );
+
+    const diagButtons: Array<[HTMLButtonElement, string]> = [
+      [q<HTMLButtonElement>('#btn-diag-none'), 'none'],
+      [q<HTMLButtonElement>('#btn-diag-zebra'), 'zebra'],
+      [q<HTMLButtonElement>('#btn-diag-curv'), 'curvature'],
+    ];
+    const setDiagButtons = (mode: string): void => {
+      for (const [btn, m] of diagButtons) btn.classList.toggle('active', m === mode);
+    };
+    for (const [btn, m] of diagButtons) {
+      btn.addEventListener('click', () => {
+        setDiagButtons(m);
+        bus.emit('set-surface-diagnostic', { mode: m as 'none' | 'zebra' | 'curvature' });
+      });
+    }
+
+    bus.on('surface-diagnostic-changed', ({ mode }) => setDiagButtons(mode));
     q<HTMLInputElement>('#chk-navgizmo').addEventListener('change', (e) =>
       bus.emit('set-navgizmo', { visible: (e.target as HTMLInputElement).checked }),
     );

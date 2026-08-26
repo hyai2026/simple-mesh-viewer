@@ -1,6 +1,7 @@
 import type { MeshStats } from '../core/MeshData';
+import type { Colormap, CurvatureType } from '../core/Curvature';
 import type { CameraMode } from '../render/CameraRig';
-import type { LayerKey, LayerVisibility } from '../render/MeshView';
+import type { LayerKey, LayerVisibility, SurfaceDiagnostic } from '../render/MeshView';
 import type { PickHit } from '../render/PickingEngine';
 
 export interface LightingParams {
@@ -47,6 +48,11 @@ export interface EventMap {
   'navgizmo-changed': { visible: boolean };
   'hover-changed': PickHit | null;
   'selection-changed': PickHit | null;
+  'set-surface-diagnostic': { mode: SurfaceDiagnostic };
+  'surface-diagnostic-changed': { mode: SurfaceDiagnostic };
+  'set-curvature-options': { type: CurvatureType; colormap: Colormap };
+  'curvature-options-changed': { type: CurvatureType; colormap: Colormap };
+  'curvature-range': { min: number; max: number };
   'busy': { active: boolean; label?: string };
 }
 

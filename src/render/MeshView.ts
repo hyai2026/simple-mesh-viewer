@@ -4,6 +4,7 @@ import type { MeshData, MeshStats } from '../core/MeshData';
 import { meshStats } from '../core/MeshData';
 
 export type LayerKey = 'points' | 'edges' | 'surface';
+export type SurfaceDiagnostic = 'none' | 'zebra' | 'curvature';
 
 export interface LayerVisibility {
   points: boolean;
@@ -27,6 +28,97 @@ void main() {
   if (dot(d, d) > 0.25) discard;
   gl_FragColor = vec4(uColor, uAlpha);
 }`;
+}
+
+const ZEBRA_FRAG_TAIL = `
+{
+  vec3 V = normalize(-vMVPos);
+  vec3 Nn = normalize(vVNormal);
+  vec3 Rv = reflect(-V, Nn);
+  float band = 0.5 + 0.5 * sin(Rv.y * uStripeCount);
+  gl_FragColor.rgb *= mix(0.12, 1.0, smoothstep(-0.06, 0.06, band - 0.5));
+}
+#include <dithering_fragment>`;
+
+function createZebraMaterial(): THREE.MeshStandardMaterial {
+  const uniforms = { uStripeCount: { value: 24 } };
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.55,
+    metalness: 0,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uStripeCount = uniforms.uStripeCount;
+    shader.vertexShader = `varying vec3 vMVPos;\nvarying vec3 vVNormal;\n${shader.vertexShader}`
+      .replace(
+        '#include <project_vertex>',
+        '#include <project_vertex>\nvMVPos = mvPosition.xyz;\nvVNormal = normalize(normalMatrix * objectNormal);',
+      );
+    shader.fragmentShader = `varying vec3 vMVPos;\nvarying vec3 vVNormal;\nuniform float uStripeCount;\n${shader.fragmentShader}`
+      .replace('#include <dithering_fragment>', ZEBRA_FRAG_TAIL);
+  };
+  mat.customProgramCacheKey = () => 'mesh-viewer-zebra';
+  return mat;
+}
+
+const CURVATURE_VERT = `
+attribute float aScalar;
+varying float vScalar;
+varying vec3 vMVPos;
+varying vec3 vVNormal;
+void main() {
+  vScalar = aScalar;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  vMVPos = mvPosition.xyz;
+  vVNormal = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * mvPosition;
+}`;
+
+const CURVATURE_FRAG = `
+varying float vScalar;
+varying vec3 vMVPos;
+varying vec3 vVNormal;
+uniform float uAlpha;
+uniform int uColormap;
+vec3 jet(float t) {
+  return clamp(vec3(
+    1.5 - abs(4.0 * t - 3.0),
+    1.5 - abs(4.0 * t - 2.0),
+    1.5 - abs(4.0 * t - 1.0)
+  ), 0.0, 1.0);
+}
+vec3 bwr(float t) {
+  return t < 0.5
+    ? mix(vec3(0.05, 0.05, 1.0), vec3(1.0), t * 2.0)
+    : mix(vec3(1.0), vec3(1.0, 0.05, 0.05), (t - 0.5) * 2.0);
+}
+void main() {
+  float s = clamp(vScalar, 0.0, 1.0);
+  vec3 col = uColormap == 0 ? jet(s) : bwr(s);
+  vec3 N = normalize(vVNormal);
+  vec3 V = normalize(-vMVPos);
+  float l = 0.6 + 0.4 * abs(dot(N, V));
+  gl_FragColor = vec4(col * l, uAlpha);
+}`;
+
+function createCurvatureMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uAlpha: { value: 1 },
+      uColormap: { value: 0 },
+    },
+    vertexShader: CURVATURE_VERT,
+    fragmentShader: CURVATURE_FRAG,
+    side: THREE.DoubleSide,
+    transparent: true,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
+  });
 }
 
 export const DEFAULT_COLORS = {
@@ -55,6 +147,9 @@ export class MeshView {
   private bvhBuilt = false;
   private flatShading = true;
   private pickable = true;
+  private diagMode: SurfaceDiagnostic = 'none';
+  private diagZebraMat: THREE.MeshStandardMaterial | null = null;
+  private diagCurvMat: THREE.ShaderMaterial | null = null;
   private opacity = 1;
   private colors: Record<LayerKey, number> = { ...DEFAULT_COLORS };
 
@@ -123,9 +218,41 @@ export class MeshView {
     }
 
     this.computeWorldBox();
+    this.diagMode = 'none';
     this.vis = defaultVisibility(data);
     this.applyVis();
     this.applyOpacity();
+  }
+
+  getSurfaceDiagnostic(): SurfaceDiagnostic {
+    return this.diagMode;
+  }
+
+  setSurfaceDiagnostic(mode: SurfaceDiagnostic): void {
+    if (this.diagMode === mode) return;
+    if (!this.surfaceMesh || !this.surfaceGeo) return;
+    this.diagMode = mode;
+    if (mode !== 'none' && !this.surfaceGeo.getAttribute('normal')) {
+      this.surfaceGeo.computeVertexNormals();
+    }
+    switch (mode) {
+      case 'zebra':
+        if (!this.diagZebraMat) this.diagZebraMat = createZebraMaterial();
+        this.surfaceMesh.material = this.diagZebraMat;
+        break;
+      case 'curvature':
+        if (!this.diagCurvMat) this.diagCurvMat = createCurvatureMaterial();
+        this.surfaceMesh.material = this.diagCurvMat;
+        break;
+      default:
+        this.surfaceMesh.material = this.surfaceMat!;
+    }
+    this.applyOpacity();
+  }
+
+  setCurvatureScalars(scalars: Float32Array): void {
+    if (!this.surfaceGeo) return;
+    this.surfaceGeo.setAttribute('aScalar', new THREE.BufferAttribute(scalars, 1));
   }
 
   getOpacity(): number {
@@ -158,6 +285,15 @@ export class MeshView {
       }
       this.surfaceMat.depthWrite = solid;
       this.surfaceMat.opacity = this.opacity;
+    }
+    for (const dm of [this.diagZebraMat, this.diagCurvMat]) {
+      if (!dm) continue;
+      if ((dm as THREE.ShaderMaterial).isShaderMaterial) {
+        (dm as THREE.ShaderMaterial).uniforms.uAlpha.value = this.opacity;
+      } else {
+        dm.opacity = this.opacity;
+      }
+      dm.depthWrite = solid;
     }
     if (this.edgesMat) {
       if (this.edgesMat.transparent !== transparent) {
@@ -255,6 +391,11 @@ export class MeshView {
     this.surfaceMat?.dispose();
     this.pointsMat?.dispose();
     this.edgesMat?.dispose();
+    this.diagZebraMat?.dispose();
+    this.diagCurvMat?.dispose();
+    this.diagZebraMat = null;
+    this.diagCurvMat = null;
+    this.diagMode = 'none';
     this.surfaceGeo = null;
     this.surfaceMat = null;
     this.surfaceMesh = null;

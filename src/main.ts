@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import type { SelectionState } from './core/SelectionStore';
 import { SelectionStore } from './core/SelectionStore';
 import { meshStats } from './core/MeshData';
+import { computeCurvature, derivePrincipal, normalizeForColormap, type Colormap, type CurvatureData, type CurvatureType, type NormalizedScalars } from './core/Curvature';
+import type { MeshView } from './render/MeshView';
 import { detectFormat, getParser } from './io/ParserRegistry';
 import { loadModelFile } from './io/loadModelFile';
 import { CameraRig, nextCameraMode, type CameraMode } from './render/CameraRig';
@@ -13,6 +15,7 @@ import type { PickHit, ViewportRect } from './render/PickingEngine';
 import { hitsEqual, PickingEngine } from './render/PickingEngine';
 import { SceneManager } from './render/SceneManager';
 import { EnvironmentPanel } from './ui/EnvironmentPanel';
+import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { EventBus, type LightingParams, DEFAULT_LIGHTING } from './ui/EventBus';
 import { ModelList } from './ui/ModelList';
 import { SelectionPanel } from './ui/SelectionPanel';
@@ -40,16 +43,21 @@ new Toolbar(toolbarEl, bus);
 
 const listSection = document.createElement('div');
 const envSection = document.createElement('div');
+const diagSection = document.createElement('div');
 const selSection = document.createElement('div');
-infoEl.append(listSection, envSection, selSection);
+infoEl.append(listSection, envSection, diagSection, selSection);
 new ModelList(listSection, bus);
 new EnvironmentPanel(envSection, bus);
+new DiagnosticsPanel(diagSection, bus);
 new SelectionPanel(selSection, bus, models);
 new StatusBar(statusEl, bus);
 
 let isLoading = false;
 let gridVisible = true;
 let lighting: LightingParams = { ...DEFAULT_LIGHTING };
+let surfaceDiagnostic: 'none' | 'zebra' | 'curvature' = 'none';
+let curvOpts: { type: CurvatureType; colormap: Colormap } = { type: 'mean', colormap: 'jet' };
+const curvatureCache = new Map<string, CurvatureData>();
 let hoverHit: PickHit | null = null;
 let selHit: PickHit | null = null;
 
@@ -126,6 +134,9 @@ async function loadModel(file: File): Promise<void> {
       ms: performance.now() - t0,
     });
     bus.emit('model-layer-changed', { id: view.id, vis: view.getVisibility() });
+    if (surfaceDiagnostic !== 'none' && mesh.triangleCount > 0) {
+      bus.emit('set-surface-diagnostic', { mode: surfaceDiagnostic });
+    }
     if (mesh.triangleCount > 0) {
       bus.emit('busy', { active: true, label: '构建空间索引…' });
       setTimeout(() => {
@@ -145,6 +156,7 @@ bus.on('open-file', ({ file }) => enqueueLoad(file));
 bus.on('remove-model', ({ id }) => {
   if (!models.remove(id)) return;
   picking.unregister(id);
+  curvatureCache.delete(id);
   selection.clearModel(id);
   if (selHit?.modelId === id) {
     selHit = null;
@@ -183,6 +195,68 @@ bus.on('set-model-pickable', ({ id, pickable }) => {
   if (!view) return;
   view.setPickable(pickable);
   bus.emit('model-pickable-changed', { id, pickable });
+});
+
+function scalarsFor(view: MeshView): NormalizedScalars {
+  const data = view.meshData;
+  if (!data) return { data: new Float32Array(0), min: 0, max: 0 };
+  let cd = curvatureCache.get(view.id);
+  if (!cd) {
+    cd = computeCurvature(data);
+    curvatureCache.set(view.id, cd);
+  }
+  const values = derivePrincipal(curvOpts.type, cd.mean, cd.gauss);
+  return normalizeForColormap(values, 0.02, 0.98, cd.valid);
+}
+
+function applyDiagnosticToView(view: MeshView): void {
+  if (!view.meshData || !view.hasLayer('surface')) return;
+    if (surfaceDiagnostic === 'curvature') {
+      const { data: scalars, min, max } = scalarsFor(view);
+      view.setCurvatureScalars(scalars);
+      bus.emit('curvature-range', { min, max });
+    }
+    view.setSurfaceDiagnostic(surfaceDiagnostic);
+}
+
+function applyDiagnosticToAll(): void {
+  for (const view of models.all()) applyDiagnosticToView(view);
+  bus.emit('surface-diagnostic-changed', { mode: surfaceDiagnostic });
+}
+
+function needsCurvatureCompute(): boolean {
+  return models
+    .all()
+    .some((v) => v.meshData && v.hasLayer('surface') && !curvatureCache.has(v.id));
+}
+
+bus.on('set-surface-diagnostic', ({ mode }) => {
+  surfaceDiagnostic = mode;
+  if (needsCurvatureCompute()) {
+    bus.emit('busy', { active: true, label: '计算曲率…' });
+    setTimeout(() => {
+      applyDiagnosticToAll();
+      bus.emit('busy', { active: false });
+    }, 10);
+  } else {
+    applyDiagnosticToAll();
+  }
+});
+
+bus.on('set-curvature-options', (opts) => {
+  curvOpts = opts;
+  bus.emit('curvature-options-changed', opts);
+  if (surfaceDiagnostic !== 'curvature' || curvatureCache.size === 0) return;
+  bus.emit('busy', { active: true, label: '更新色带…' });
+  setTimeout(() => {
+    for (const view of models.all()) {
+      if (!view.meshData || !view.hasLayer('surface')) continue;
+      const { data: scalars, min, max } = scalarsFor(view);
+      view.setCurvatureScalars(scalars);
+      bus.emit('curvature-range', { min, max });
+    }
+    bus.emit('busy', { active: false });
+  }, 10);
 });
 
 bus.on('set-shading', ({ flat }) => {

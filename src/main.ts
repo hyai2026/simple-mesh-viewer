@@ -8,6 +8,7 @@ import { loadModelFile } from './io/loadModelFile';
 import { CameraRig } from './render/CameraRig';
 import { HighlightLayer } from './render/HighlightLayer';
 import { ModelRegistry } from './render/ModelRegistry';
+import { NavGizmo } from './render/NavGizmo';
 import type { PickHit, ViewportRect } from './render/PickingEngine';
 import { hitsEqual, PickingEngine } from './render/PickingEngine';
 import { SceneManager } from './render/SceneManager';
@@ -27,6 +28,7 @@ const bus = new EventBus();
 const sceneMgr = new SceneManager(viewport);
 const rig = new CameraRig(sceneMgr.camera, viewport);
 const models = new ModelRegistry(sceneMgr.root);
+const navGizmo = new NavGizmo(viewport, sceneMgr.camera);
 const picking = new PickingEngine(sceneMgr.camera);
 const selectHighlight = new HighlightLayer();
 const hoverHighlight = new HighlightLayer();
@@ -194,6 +196,23 @@ bus.on('set-grid', ({ visible }) => {
   bus.emit('grid-changed', { visible });
 });
 
+bus.on('set-headlight', ({ on }) => {
+  sceneMgr.setHeadlight(on);
+  bus.emit('headlight-changed', { on });
+});
+
+bus.on('set-navgizmo', ({ visible }) => {
+  navGizmo.setVisible(visible);
+  bus.emit('navgizmo-changed', { visible });
+});
+
+function setCameraMode(mode: 'orbit' | 'trackball'): void {
+  rig.setMode(mode);
+  bus.emit('camera-mode-changed', { mode });
+}
+
+bus.on('set-camera-mode', ({ mode }) => setCameraMode(mode));
+
 function resetView(): void {
   rig.fitAll(models.unionBox(new THREE.Box3()));
 }
@@ -303,17 +322,24 @@ window.addEventListener('keydown', (e) => {
   if (key === 'f') frameSelection();
   else if (e.key === 'Home') resetView();
   else if (key === 'g') bus.emit('set-grid', { visible: !gridVisible });
+  else if (key === 'c') {
+    bus.emit('set-camera-mode', { mode: rig.mode === 'orbit' ? 'trackball' : 'orbit' });
+  }
   else if (e.key === 'Escape') bus.emit('selection-changed', null);
 });
 
-sceneMgr.start(() => {
-  rig.controls.update();
-  if (pointerDirty && !rig.isActive() && lastClient && !isLoading) {
-    pointerDirty = false;
-    const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);
-    if (!hitsEqual(hit, hoverHit)) {
-      hoverHit = hit;
-      bus.emit('hover-changed', hit);
+sceneMgr.start(
+  (dt) => {
+    rig.update();
+    navGizmo.update(dt);
+    if (pointerDirty && !rig.isActive() && lastClient && !isLoading) {
+      pointerDirty = false;
+      const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);
+      if (!hitsEqual(hit, hoverHit)) {
+        hoverHit = hit;
+        bus.emit('hover-changed', hit);
+      }
     }
-  }
-});
+  },
+  () => navGizmo.render(),
+);

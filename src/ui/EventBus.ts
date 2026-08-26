@@ -1,4 +1,5 @@
 import type { MeshStats } from '../core/MeshData';
+import type { CameraMode } from '../render/CameraRig';
 import type { LayerKey, LayerVisibility } from '../render/MeshView';
 import type { PickHit } from '../render/PickingEngine';
 
@@ -38,6 +39,12 @@ export interface EventMap {
   'set-lighting': Partial<LightingParams>;
   'lighting-changed': LightingParams;
   'view-reset': Record<string, never>;
+  'set-camera-mode': { mode: CameraMode };
+  'camera-mode-changed': { mode: CameraMode };
+  'set-headlight': { on: boolean };
+  'headlight-changed': { on: boolean };
+  'set-navgizmo': { visible: boolean };
+  'navgizmo-changed': { visible: boolean };
   'hover-changed': PickHit | null;
   'selection-changed': PickHit | null;
   'busy': { active: boolean; label?: string };

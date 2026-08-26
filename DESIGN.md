@@ -1,6 +1,6 @@
 # 三维网格查看器 — 设计文档
 
-> 版本 v1.1.1 · 2026-08-25 · 技术栈：Vite + TypeScript + three.js + three-mesh-bvh + Vitest
+> 版本 v1.1.3 · 2026-08-25 · 技术栈：Vite + TypeScript + three.js + three-mesh-bvh + Vitest
 >
 > **v1.1 变更**：① 多模型同屏（遮挡关系）+ 模型列表面板，逐模型控制成分显隐 /
 > 不透明度 / 成分着色，移除顶部栏的单模型开关；② 场景光照可调（环境/主光/补光/背景色），
@@ -13,6 +13,12 @@
 > **v1.1.2 修复与增强**：① 面拾取错位修复 —— three-mesh-bvh 默认会重排几何体
 > index 缓冲，导致 `triToFace` 映射失效；改用 `indirect: true` 模式保持索引原序；
 > ② 新增逐模型"拾取"开关，关闭后该模型不参与 hover/点击（遮挡测试不受影响）。
+>
+> **v1.1.3 新增**：① **双视角控制器** —— Trackball（球面，默认，无极点死锁）与
+> Orbit（轨道，缩放到光标）随时切换（工具栏 / C 键），切换保持视角不跳变；
+> 距离钳制放宽为允许穿入模型内部观察；② **头灯** —— 相机挂载补光灯，视线方向
+> 恒定照明，工具栏开关；③ **视向轴 Gizmo** —— 视口右上角官方 ViewHelper，
+> 点击 XYZ 手柄平滑切换六向视角，可显隐。
 
 ## 1. 目标与需求映射
 
@@ -46,12 +52,13 @@ src/
 │   │   └── ply.ts           # ascii + binary LE/BE；vertex/face/edge 元素
 │   └── workers/parseWorker.ts
 ├── render/
-│   ├── SceneManager.ts      # 场景/相机/可调灯光/地面网格/resize/渲染循环
-│   ├── CameraRig.ts         # OrbitControls 配置 + frameBox/fitAll
+│   ├── SceneManager.ts      # 场景/相机/可调灯光(含头灯)/地面网格/resize/渲染循环
+│   ├── CameraRig.ts         # 双控制器：Trackball(默认) / Orbit 切换 + frameBox/fitAll
 │   ├── ModelRegistry.ts     # 多模型容器：add/remove/unionBox（遮挡=同场景深度缓冲）
 │   ├── MeshView.ts          # 单个模型的点/边/面图层 + 外观（透明度/成分颜色）
 │   ├── VertexGrid.ts        # 均匀空间哈希网格（CSR）+ 射线 DDA 遍历
 │   ├── PickingEngine.ts     # 跨模型统一拾取入口 → PickHit{modelId,...}
+│   ├── NavGizmo.ts          # 视口右上角视向轴 Gizmo（ViewHelper 独立覆盖层）
 │   └── HighlightLayer.ts    # hover/选中 高亮覆盖层（选中/悬停各一实例）
 └── ui/
     ├── EventBus.ts          # 类型化事件总线（扩展点③）
@@ -155,12 +162,29 @@ File.arrayBuffer()
 - `unionBox()` 汇总所有模型包围盒用于全景适配；加载新模型后自动重新 fit；
 - 移除模型时同步释放几何体/材质/BVH，并清理拾取缓存与引用该模型的高亮/选中。
 
-## 6. 相机与检视（无死锁）
+## 6. 相机与检视（v1.1.3 双控制器）
 
-- OrbitControls：左键旋转 / 右键平移 / 中键缩放 / 滚轮缩放到光标；阻尼开启；
-  `minDistance/maxDistance` 取有限合理值（随模型包围球设定），不存在卡死位姿。
+- **双控制器**，工具栏分段控件或 `C` 键随时切换，切换时同步 target/相机位置（视角无跳变）：
+  - **球面 Trackball（默认）**：四元数屏幕轴旋转，**无极点死锁**——俯仰任意角度都能继续转；
+    失去"上方向"参照与缩放到光标能力；
+  - **轨道 Orbit**：保留水平方向感与**缩放到光标**；极点处存在固有旋转退化（原 v1.0 死区）。
+- **距离钳制**：`CameraRig.update()` 每帧统一执行 —— 下限取近裁剪面量级
+  （**允许穿入模型内部**观察内壁），上限防飞出；两种模式行为一致。
 - 加载后自动 fit：按全体模型包围球计算距离，同步设置 near/far。
-- 快捷键：`F` 聚焦选中元素（无选中则全景）、`Home` 全景、`G` 地面网格、`Esc` 取消选中。
+- **视向轴 Gizmo**：视口右上角独立覆盖层 + 迷你渲染器 + 官方 `ViewHelper`
+  （轴线 + XYZ 字母手柄）；点击平滑动画切换六向标准视角（绕目标旋转、距离不变）；
+  工具栏"视向轴"chip 控制显隐；事件天然隔离，不影响主画布的旋转/拾取。
+- 快捷键：`F` 聚焦选中元素（无选中则全景）、`Home` 全景、`G` 地面网格、
+  `C` 切换控制器、`Esc` 取消选中。
+
+### 场景光照组成
+
+| 灯光 | 类型 | 方向 | 默认强度 | 可调 |
+|---|---|---|---|---|
+| 环境光 | HemisphereLight | 无（天空 #d6e0f0 / 地 #3a3f46） | 1.5 | 环境面板 0~3 |
+| 主光 | DirectionalLight | 世界固定 (5,8,4) | 2.8 | 环境面板 0~6 |
+| 补光 | DirectionalLight | 世界固定 (-5,-2,-6) | 0.9 | 环境面板 0~3 |
+| 头灯 (v1.1.3) | DirectionalLight 挂载于相机 | 恒为视线方向 | 0（关） | 工具栏开关，开 = 2.5 |
 
 ## 7. 拾取系统（核心）
 

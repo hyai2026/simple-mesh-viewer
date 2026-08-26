@@ -1,31 +1,81 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
+
+export type CameraMode = 'orbit' | 'trackball';
 
 export class CameraRig {
-  readonly controls: OrbitControls;
-  private active = false;
+  readonly orbit: OrbitControls;
+  readonly ball: TrackballControls;
+  private _mode: CameraMode = 'trackball';
+  private active = false;  private minDist = 1e-4;
+  private maxDist = 5000;
 
   constructor(private camera: THREE.PerspectiveCamera, dom: HTMLElement) {
-    this.controls = new OrbitControls(camera, dom);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.08;
-    this.controls.zoomToCursor = true;
-    this.controls.screenSpacePanning = true;
-    this.controls.mouseButtons = {
+    this.orbit = new OrbitControls(camera, dom);
+    this.orbit.enableDamping = true;
+    this.orbit.dampingFactor = 0.08;
+    this.orbit.zoomToCursor = true;
+    this.orbit.screenSpacePanning = true;
+    this.orbit.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
       RIGHT: THREE.MOUSE.PAN,
     };
-    this.controls.addEventListener('start', () => {
-      this.active = true;
-    });
-    this.controls.addEventListener('end', () => {
-      this.active = false;
-    });
+
+    this.ball = new TrackballControls(camera, dom);
+    this.ball.rotateSpeed = 1.0;
+    this.ball.zoomSpeed = 1.2;
+    this.ball.panSpeed = 0.8;
+    this.ball.dynamicDampingFactor = 0.08;
+    this.ball.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN,
+    };
+
+    for (const c of [this.orbit, this.ball]) {
+      c.addEventListener('start', () => {
+        this.active = true;
+      });
+      c.addEventListener('end', () => {
+        this.active = false;
+      });
+    }
+
+    this.applyMode();
+  }
+
+  get mode(): CameraMode {
+    return this._mode;
+  }
+
+  setMode(mode: CameraMode): void {
+    if (mode === this._mode) return;
+    this.orbit.target.copy(this.ball.target);
+    this._mode = mode;
+    this.applyMode();
   }
 
   isActive(): boolean {
     return this.active;
+  }
+
+  update(): void {
+    if (this.mode === 'orbit') {
+      this.orbit.update();
+      this.ball.target.copy(this.orbit.target);
+    } else {
+      this.ball.update();
+      this.orbit.target.copy(this.ball.target);
+    }
+    const offset = this.camera.position.clone().sub(this.orbit.target);
+    const d = offset.length();
+    if (d > this.maxDist) {
+      this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.maxDist);
+    } else if (d < this.minDist && d > 1e-9) {
+      this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.minDist);
+    }
   }
 
   frameBox(box: THREE.Box3, padding = 1.25): void {
@@ -35,20 +85,34 @@ export class CameraRig {
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
     const fovH = 2 * Math.atan(Math.tan(fovV / 2) * this.camera.aspect);
     const dist = (r / Math.sin(Math.min(fovV, fovH) / 2)) * padding;
-    const dir = this.camera.position.clone().sub(this.controls.target);
+    const dir = this.camera.position.clone().sub(this.orbit.target);
     if (dir.lengthSq() < 1e-12) dir.set(0.6, 0.45, 1).normalize();
     else dir.normalize();
     this.camera.near = Math.max(dist / 1000, r / 10000, 1e-6);
     this.camera.far = dist + r * 200;
     this.camera.updateProjectionMatrix();
-    this.controls.minDistance = Math.max(r * 0.002, 1e-6);
-    this.controls.maxDistance = Math.max(dist * 50, r * 500);
-    this.controls.target.copy(sphere.center);
+    this.minDist = Math.max(r * 0.0005, this.camera.near);
+    this.maxDist = Math.max(dist * 50, r * 500);
+    this.orbit.minDistance = this.minDist;
+    this.orbit.maxDistance = this.maxDist;
+    this.orbit.target.copy(sphere.center);
+    this.ball.target.copy(sphere.center);
     this.camera.position.copy(sphere.center).addScaledVector(dir, dist);
-    this.controls.update();
+    this.orbit.update();
+    this.ball.update();
   }
 
   fitAll(worldBox: THREE.Box3): void {
     this.frameBox(worldBox);
+  }
+
+  dispose(): void {
+    this.orbit.dispose();
+    this.ball.dispose();
+  }
+
+  private applyMode(): void {
+    this.orbit.enabled = this.mode === 'orbit';
+    this.ball.enabled = this.mode === 'trackball';
   }
 }

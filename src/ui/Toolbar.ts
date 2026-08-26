@@ -1,3 +1,4 @@
+import type { CameraMode } from '../render/CameraRig';
 import type { EventBus } from './EventBus';
 
 const TEMPLATE = `
@@ -10,11 +11,17 @@ const TEMPLATE = `
   <button id="btn-flat" class="seg-btn active">平直</button>
   <button id="btn-smooth" class="seg-btn">平滑</button>
 </div>
+<div class="seg">
+  <button id="btn-orbit" class="seg-btn">轨道</button>
+  <button id="btn-ball" class="seg-btn active">球面</button>
+</div>
+<label class="chip"><input type="checkbox" id="chk-headlight" /><span>头灯</span></label>
+<label class="chip"><input type="checkbox" id="chk-navgizmo" checked /><span>视向轴</span></label>
 <span class="sep"></span>
 <label class="chip"><input type="checkbox" id="chk-grid" checked /><span>网格地面</span></label>
 <button id="btn-reset" class="btn">复位视图</button>
 <div class="spacer"></div>
-<span class="hint-text">拖放 .obj / .ply 到视口 · F 聚焦 · Home 全景 · G 网格 · Esc 取消选择</span>
+<span class="hint-text">拖放 .obj / .ply · C 切换视角模式 · F 聚焦 · Home 全景 · G 网格 · Esc 取消选择</span>
 `;
 
 export class Toolbar {
@@ -48,6 +55,26 @@ export class Toolbar {
       bus.emit('view-reset', {}),
     );
 
+    const btnOrbit = q<HTMLButtonElement>('#btn-orbit');
+    const btnBall = q<HTMLButtonElement>('#btn-ball');
+    const setCamButtons = (mode: CameraMode): void => {
+      btnOrbit.classList.toggle('active', mode === 'orbit');
+      btnBall.classList.toggle('active', mode === 'trackball');
+    };
+    const emitMode = (mode: CameraMode): void => {
+      setCamButtons(mode);
+      bus.emit('set-camera-mode', { mode });
+    };
+    btnOrbit.addEventListener('click', () => emitMode('orbit'));
+    btnBall.addEventListener('click', () => emitMode('trackball'));
+
+    q<HTMLInputElement>('#chk-headlight').addEventListener('change', (e) =>
+      bus.emit('set-headlight', { on: (e.target as HTMLInputElement).checked }),
+    );
+    q<HTMLInputElement>('#chk-navgizmo').addEventListener('change', (e) =>
+      bus.emit('set-navgizmo', { visible: (e.target as HTMLInputElement).checked }),
+    );
+
     bus.on('shading-changed', ({ flat }) => {
       this.btnFlat.classList.toggle('active', flat);
       this.btnSmooth.classList.toggle('active', !flat);
@@ -55,6 +82,7 @@ export class Toolbar {
     bus.on('grid-changed', ({ visible }) => {
       this.chkGrid.checked = visible;
     });
+    bus.on('camera-mode-changed', ({ mode }) => setCamButtons(mode));
   }
 
   toggleGrid(): void {

@@ -16,7 +16,7 @@ export class CameraRig {
   readonly orbit: OrbitControls;
   readonly ball: TrackballControls;
   readonly arc: ArcballControls;
-  private _mode: CameraMode = 'trackball';
+  private _mode: CameraMode = 'arcball';
   private active = false;
   private minDist = 1e-4;
   private maxDist = 5000;

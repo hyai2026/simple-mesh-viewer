@@ -13,8 +13,8 @@ const TEMPLATE = `
 </div>
 <div class="seg">
   <button id="btn-orbit" class="seg-btn">轨道</button>
-  <button id="btn-ball" class="seg-btn active">球面</button>
-  <button id="btn-arc" class="seg-btn">弧球</button>
+  <button id="btn-ball" class="seg-btn">球面</button>
+  <button id="btn-arc" class="seg-btn active">弧球</button>
 </div>
 <label class="chip"><input type="checkbox" id="chk-headlight" checked /><span>头灯</span></label>
 <label class="chip"><input type="checkbox" id="chk-navgizmo" checked /><span>视向轴</span></label>

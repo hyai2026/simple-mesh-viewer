@@ -26,13 +26,20 @@ export class NavGizmo {
     this.helper = new ViewHelper(camera, this.overlay);
     this.helper.setLabels('X', 'Y', 'Z');
 
-    this.overlay.addEventListener('pointerup', (e) => {
-      this.helper.handleClick(e);
-    });
+    for (const type of ['pointerdown', 'pointermove', 'pointerup'] as const) {
+      this.overlay.addEventListener(type, (e) => {
+        e.stopPropagation();
+        if (type === 'pointerup') this.helper.handleClick(e);
+      });
+    }
   }
 
   get isVisible(): boolean {
     return this.visible;
+  }
+
+  get isAnimating(): boolean {
+    return this.helper.animating;
   }
 
   setVisible(v: boolean): void {

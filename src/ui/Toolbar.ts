@@ -14,6 +14,7 @@ const TEMPLATE = `
 <div class="seg">
   <button id="btn-orbit" class="seg-btn">轨道</button>
   <button id="btn-ball" class="seg-btn active">球面</button>
+  <button id="btn-arc" class="seg-btn">弧球</button>
 </div>
 <label class="chip"><input type="checkbox" id="chk-headlight" /><span>头灯</span></label>
 <label class="chip"><input type="checkbox" id="chk-navgizmo" checked /><span>视向轴</span></label>
@@ -57,9 +58,11 @@ export class Toolbar {
 
     const btnOrbit = q<HTMLButtonElement>('#btn-orbit');
     const btnBall = q<HTMLButtonElement>('#btn-ball');
+    const btnArc = q<HTMLButtonElement>('#btn-arc');
     const setCamButtons = (mode: CameraMode): void => {
       btnOrbit.classList.toggle('active', mode === 'orbit');
       btnBall.classList.toggle('active', mode === 'trackball');
+      btnArc.classList.toggle('active', mode === 'arcball');
     };
     const emitMode = (mode: CameraMode): void => {
       setCamButtons(mode);
@@ -67,6 +70,7 @@ export class Toolbar {
     };
     btnOrbit.addEventListener('click', () => emitMode('orbit'));
     btnBall.addEventListener('click', () => emitMode('trackball'));
+    btnArc.addEventListener('click', () => emitMode('arcball'));
 
     q<HTMLInputElement>('#chk-headlight').addEventListener('change', (e) =>
       bus.emit('set-headlight', { on: (e.target as HTMLInputElement).checked }),

@@ -1,14 +1,24 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
+import { ArcballControls } from 'three/examples/jsm/controls/ArcballControls.js';
 
-export type CameraMode = 'orbit' | 'trackball';
+export type CameraMode = 'orbit' | 'trackball' | 'arcball';
+
+export const CAMERA_MODES: CameraMode[] = ['orbit', 'trackball', 'arcball'];
+
+export function nextCameraMode(mode: CameraMode): CameraMode {
+  const i = CAMERA_MODES.indexOf(mode);
+  return CAMERA_MODES[(i + 1) % CAMERA_MODES.length];
+}
 
 export class CameraRig {
   readonly orbit: OrbitControls;
   readonly ball: TrackballControls;
+  readonly arc: ArcballControls;
   private _mode: CameraMode = 'trackball';
-  private active = false;  private minDist = 1e-4;
+  private active = false;
+  private minDist = 1e-4;
   private maxDist = 5000;
 
   constructor(private camera: THREE.PerspectiveCamera, dom: HTMLElement) {
@@ -24,7 +34,7 @@ export class CameraRig {
     };
 
     this.ball = new TrackballControls(camera, dom);
-    this.ball.rotateSpeed = 1.0;
+    this.ball.rotateSpeed = 1.5;
     this.ball.zoomSpeed = 1.2;
     this.ball.panSpeed = 0.8;
     this.ball.dynamicDampingFactor = 0.08;
@@ -34,7 +44,10 @@ export class CameraRig {
       RIGHT: THREE.MOUSE.PAN,
     };
 
-    for (const c of [this.orbit, this.ball]) {
+    this.arc = new ArcballControls(camera, dom);
+    this.arc.rotateSpeed = 1.2;
+
+    for (const c of [this.orbit, this.ball, this.arc]) {
       c.addEventListener('start', () => {
         this.active = true;
       });
@@ -52,7 +65,7 @@ export class CameraRig {
 
   setMode(mode: CameraMode): void {
     if (mode === this._mode) return;
-    this.orbit.target.copy(this.ball.target);
+    this.syncTargets();
     this._mode = mode;
     this.applyMode();
   }
@@ -64,11 +77,12 @@ export class CameraRig {
   update(): void {
     if (this.mode === 'orbit') {
       this.orbit.update();
-      this.ball.target.copy(this.orbit.target);
-    } else {
+    } else if (this.mode === 'trackball') {
       this.ball.update();
-      this.orbit.target.copy(this.ball.target);
+    } else {
+      this.arc.update();
     }
+    this.syncTargets();
     const offset = this.camera.position.clone().sub(this.orbit.target);
     const d = offset.length();
     if (d > this.maxDist) {
@@ -95,11 +109,15 @@ export class CameraRig {
     this.maxDist = Math.max(dist * 50, r * 500);
     this.orbit.minDistance = this.minDist;
     this.orbit.maxDistance = this.maxDist;
+    this.arc.minDistance = this.minDist;
+    this.arc.maxDistance = this.maxDist;
     this.orbit.target.copy(sphere.center);
     this.ball.target.copy(sphere.center);
+    this.arcTarget.copy(sphere.center);
     this.camera.position.copy(sphere.center).addScaledVector(dir, dist);
     this.orbit.update();
     this.ball.update();
+    this.arc.update();
   }
 
   fitAll(worldBox: THREE.Box3): void {
@@ -109,10 +127,30 @@ export class CameraRig {
   dispose(): void {
     this.orbit.dispose();
     this.ball.dispose();
+    this.arc.dispose();
+  }
+
+  private syncTargets(): void {
+    const arcTarget = this.arcTarget;
+    if (this.mode === 'orbit') {
+      this.ball.target.copy(this.orbit.target);
+      arcTarget.copy(this.orbit.target);
+    } else if (this.mode === 'trackball') {
+      this.orbit.target.copy(this.ball.target);
+      arcTarget.copy(this.ball.target);
+    } else {
+      this.orbit.target.copy(arcTarget);
+      this.ball.target.copy(arcTarget);
+    }
+  }
+
+  private get arcTarget(): THREE.Vector3 {
+    return (this.arc as unknown as { target: THREE.Vector3 }).target;
   }
 
   private applyMode(): void {
     this.orbit.enabled = this.mode === 'orbit';
     this.ball.enabled = this.mode === 'trackball';
+    this.arc.enabled = this.mode === 'arcball';
   }
 }

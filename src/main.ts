@@ -5,7 +5,7 @@ import { SelectionStore } from './core/SelectionStore';
 import { meshStats } from './core/MeshData';
 import { detectFormat, getParser } from './io/ParserRegistry';
 import { loadModelFile } from './io/loadModelFile';
-import { CameraRig } from './render/CameraRig';
+import { CameraRig, nextCameraMode, type CameraMode } from './render/CameraRig';
 import { HighlightLayer } from './render/HighlightLayer';
 import { ModelRegistry } from './render/ModelRegistry';
 import { NavGizmo } from './render/NavGizmo';
@@ -206,7 +206,7 @@ bus.on('set-navgizmo', ({ visible }) => {
   bus.emit('navgizmo-changed', { visible });
 });
 
-function setCameraMode(mode: 'orbit' | 'trackball'): void {
+function setCameraMode(mode: CameraMode): void {
   rig.setMode(mode);
   bus.emit('camera-mode-changed', { mode });
 }
@@ -323,16 +323,16 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'Home') resetView();
   else if (key === 'g') bus.emit('set-grid', { visible: !gridVisible });
   else if (key === 'c') {
-    bus.emit('set-camera-mode', { mode: rig.mode === 'orbit' ? 'trackball' : 'orbit' });
+    bus.emit('set-camera-mode', { mode: nextCameraMode(rig.mode) });
   }
   else if (e.key === 'Escape') bus.emit('selection-changed', null);
 });
 
 sceneMgr.start(
   (dt) => {
-    rig.update();
+    if (!navGizmo.isAnimating) rig.update();
     navGizmo.update(dt);
-    if (pointerDirty && !rig.isActive() && lastClient && !isLoading) {
+    if (pointerDirty && !rig.isActive() && !navGizmo.isAnimating && lastClient && !isLoading) {
       pointerDirty = false;
       const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);
       if (!hitsEqual(hit, hoverHit)) {

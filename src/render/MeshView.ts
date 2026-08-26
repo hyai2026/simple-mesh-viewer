@@ -32,41 +32,43 @@ void main() {
 
 export const ZEBRA_DEFAULT_STRIPE_COUNT = 48;
 
-const ZEBRA_FRAG_TAIL = `
-{
-  vec3 V = normalize(-vMVPos);
-  vec3 Nn = normalize(vVNormal);
-  vec3 Rv = reflect(-V, Nn);
-  float band = 0.5 + 0.5 * sin(Rv.y * uStripeCount);
-  gl_FragColor.rgb *= mix(0.12, 1.0, smoothstep(-0.06, 0.06, band - 0.5));
-}
-#include <dithering_fragment>`;
-
 function createZebraMaterial(stripeCount: number): {
-  material: THREE.MeshStandardMaterial;
+  material: THREE.ShaderMaterial;
   uniforms: { uStripeCount: { value: number } };
 } {
   const uniforms = { uStripeCount: { value: stripeCount } };
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.55,
-    metalness: 0,
+  const mat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+varying vec3 vMVPos;
+varying vec3 vVNormal;
+void main() {
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  vMVPos = mvPosition.xyz;
+  vVNormal = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * mvPosition;
+}`,
+    fragmentShader: `
+varying vec3 vMVPos;
+varying vec3 vVNormal;
+uniform float uStripeCount;
+uniform float uAlpha;
+void main() {
+  vec3 V = normalize(-vMVPos);
+  vec3 N = normalize(vVNormal);
+  float phase = reflect(-V, N).y * uStripeCount;
+  float aa = max(fwidth(phase) * 1.2, 1e-4);
+  float tri = abs(fract(phase) - 0.5) * 2.0;
+  float band = smoothstep(0.5 - aa, 0.5 + aa, tri);
+  vec3 col = mix(vec3(0.02), vec3(0.95), band);
+  gl_FragColor = vec4(col, uAlpha);
+}`,
     side: THREE.DoubleSide,
+    transparent: true,
     polygonOffset: true,
     polygonOffsetFactor: 1,
     polygonOffsetUnits: 1,
   });
-  mat.onBeforeCompile = (shader) => {
-    shader.uniforms.uStripeCount = uniforms.uStripeCount;
-    shader.vertexShader = `varying vec3 vMVPos;\nvarying vec3 vVNormal;\n${shader.vertexShader}`
-      .replace(
-        '#include <project_vertex>',
-        '#include <project_vertex>\nvMVPos = mvPosition.xyz;\nvVNormal = normalize(normalMatrix * objectNormal);',
-      );
-    shader.fragmentShader = `varying vec3 vMVPos;\nvarying vec3 vVNormal;\nuniform float uStripeCount;\n${shader.fragmentShader}`
-      .replace('#include <dithering_fragment>', ZEBRA_FRAG_TAIL);
-  };
-  mat.customProgramCacheKey = () => 'mesh-viewer-zebra';
   return { material: mat, uniforms };
 }
 
@@ -153,7 +155,7 @@ export class MeshView {
   private flatShading = true;
   private pickable = true;
   private diagMode: SurfaceDiagnostic = 'none';
-  private diagZebraMat: THREE.MeshStandardMaterial | null = null;
+  private diagZebraMat: THREE.ShaderMaterial | null = null;
   private diagZebraUniforms: { uStripeCount: { value: number } } | null = null;
   private diagCurvMat: THREE.ShaderMaterial | null = null;
   private stripeCount = ZEBRA_DEFAULT_STRIPE_COUNT;

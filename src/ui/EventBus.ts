@@ -50,6 +50,7 @@ export interface EventMap {
   'selection-changed': PickHit | null;
   'set-surface-diagnostic': { mode: SurfaceDiagnostic };
   'surface-diagnostic-changed': { mode: SurfaceDiagnostic };
+  'set-zebra-density': { count: number };
   'set-curvature-options': { type: CurvatureType; colormap: Colormap };
   'curvature-options-changed': { type: CurvatureType; colormap: Colormap };
   'curvature-range': { min: number; max: number };

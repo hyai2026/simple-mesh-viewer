@@ -30,6 +30,8 @@ void main() {
 }`;
 }
 
+export const ZEBRA_DEFAULT_STRIPE_COUNT = 48;
+
 const ZEBRA_FRAG_TAIL = `
 {
   vec3 V = normalize(-vMVPos);
@@ -40,8 +42,11 @@ const ZEBRA_FRAG_TAIL = `
 }
 #include <dithering_fragment>`;
 
-function createZebraMaterial(): THREE.MeshStandardMaterial {
-  const uniforms = { uStripeCount: { value: 24 } };
+function createZebraMaterial(stripeCount: number): {
+  material: THREE.MeshStandardMaterial;
+  uniforms: { uStripeCount: { value: number } };
+} {
+  const uniforms = { uStripeCount: { value: stripeCount } };
   const mat = new THREE.MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.55,
@@ -62,7 +67,7 @@ function createZebraMaterial(): THREE.MeshStandardMaterial {
       .replace('#include <dithering_fragment>', ZEBRA_FRAG_TAIL);
   };
   mat.customProgramCacheKey = () => 'mesh-viewer-zebra';
-  return mat;
+  return { material: mat, uniforms };
 }
 
 const CURVATURE_VERT = `
@@ -149,7 +154,9 @@ export class MeshView {
   private pickable = true;
   private diagMode: SurfaceDiagnostic = 'none';
   private diagZebraMat: THREE.MeshStandardMaterial | null = null;
+  private diagZebraUniforms: { uStripeCount: { value: number } } | null = null;
   private diagCurvMat: THREE.ShaderMaterial | null = null;
+  private stripeCount = ZEBRA_DEFAULT_STRIPE_COUNT;
   private opacity = 1;
   private colors: Record<LayerKey, number> = { ...DEFAULT_COLORS };
 
@@ -237,7 +244,11 @@ export class MeshView {
     }
     switch (mode) {
       case 'zebra':
-        if (!this.diagZebraMat) this.diagZebraMat = createZebraMaterial();
+        if (!this.diagZebraMat || !this.diagZebraUniforms) {
+          const z = createZebraMaterial(this.stripeCount);
+          this.diagZebraMat = z.material;
+          this.diagZebraUniforms = z.uniforms;
+        }
         this.surfaceMesh.material = this.diagZebraMat;
         break;
       case 'curvature':
@@ -253,6 +264,17 @@ export class MeshView {
   setCurvatureScalars(scalars: Float32Array): void {
     if (!this.surfaceGeo) return;
     this.surfaceGeo.setAttribute('aScalar', new THREE.BufferAttribute(scalars, 1));
+  }
+
+  getStripeCount(): number {
+    return this.stripeCount;
+  }
+
+  setStripeCount(count: number): void {
+    this.stripeCount = Math.max(2, Math.round(count));
+    if (this.diagZebraUniforms) {
+      this.diagZebraUniforms.uStripeCount.value = this.stripeCount;
+    }
   }
 
   getOpacity(): number {
@@ -394,6 +416,7 @@ export class MeshView {
     this.diagZebraMat?.dispose();
     this.diagCurvMat?.dispose();
     this.diagZebraMat = null;
+    this.diagZebraUniforms = null;
     this.diagCurvMat = null;
     this.diagMode = 'none';
     this.surfaceGeo = null;

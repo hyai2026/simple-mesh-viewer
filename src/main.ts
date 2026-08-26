@@ -243,6 +243,10 @@ bus.on('set-surface-diagnostic', ({ mode }) => {
   }
 });
 
+bus.on('set-zebra-density', ({ count }) => {
+  for (const view of models.all()) view.setStripeCount(count);
+});
+
 bus.on('set-curvature-options', (opts) => {
   curvOpts = opts;
   bus.emit('curvature-options-changed', opts);

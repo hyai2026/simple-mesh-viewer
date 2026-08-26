@@ -1,9 +1,11 @@
 import type { Colormap, CurvatureType } from '../core/Curvature';
+import { ZEBRA_DEFAULT_STRIPE_COUNT } from '../render/MeshView';
 import type { EventBus } from './EventBus';
 
 const TEMPLATE = `
 <div class="panel-section">
   <h3>诊断</h3>
+  <div class="light-row"><span>条纹密度</span><input id="in-stripe" type="range" min="2" max="120" step="1" /><span class="light-val" id="v-stripe"></span></div>
   <div class="kv"><dt>曲率类型</dt><dd>
     <select id="sel-curv-type" class="sel">
       <option value="mean">平均曲率</option>
@@ -62,6 +64,16 @@ export class DiagnosticsPanel {
     this.legendBar = el.querySelector('#legend-bar') as HTMLCanvasElement;
     this.legendMin = el.querySelector('#legend-min') as HTMLElement;
     this.legendMax = el.querySelector('#legend-max') as HTMLElement;
+
+    const stripeInput = el.querySelector('#in-stripe') as HTMLInputElement;
+    const stripeVal = el.querySelector('#v-stripe') as HTMLElement;
+    stripeInput.value = String(ZEBRA_DEFAULT_STRIPE_COUNT);
+    stripeVal.textContent = String(ZEBRA_DEFAULT_STRIPE_COUNT);
+    stripeInput.addEventListener('input', () => {
+      const count = Number(stripeInput.value);
+      stripeVal.textContent = String(count);
+      bus.emit('set-zebra-density', { count });
+    });
 
     const emitOptions = (): void => {
       this.type = this.selType.value as CurvatureType;

@@ -34,9 +34,15 @@ export const ZEBRA_DEFAULT_STRIPE_COUNT = 48;
 
 function createZebraMaterial(stripeCount: number): {
   material: THREE.ShaderMaterial;
-  uniforms: { uStripeCount: { value: number } };
+  uniforms: {
+    uStripeCount: { value: number };
+    uAlpha: { value: number };
+  };
 } {
-  const uniforms = { uStripeCount: { value: stripeCount } };
+  const uniforms = {
+    uStripeCount: { value: stripeCount },
+    uAlpha: { value: 1 },
+  };
   const mat = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: `

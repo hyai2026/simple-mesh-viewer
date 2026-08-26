@@ -74,6 +74,18 @@ export class CameraRig {
     return this.active;
   }
 
+  activeTarget(): THREE.Vector3 {
+    if (this.mode === 'orbit') return this.orbit.target;
+    if (this.mode === 'trackball') return this.ball.target;
+    return this.arcTarget;
+  }
+
+  resyncFromCamera(): void {
+    if (this.mode === 'arcball') {
+      this.arc.setCamera(this.camera);
+    }
+  }
+
   update(): void {
     if (this.mode === 'orbit') {
       this.orbit.update();

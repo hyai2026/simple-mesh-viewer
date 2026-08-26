@@ -11,9 +11,9 @@ export interface LightingParams {
 }
 
 export const DEFAULT_LIGHTING: LightingParams = {
-  hemi: 1.5,
-  key: 2.8,
-  fill: 0.9,
+  hemi: 1.9,
+  key: 3.4,
+  fill: 1.2,
   background: '#1a1d22',
 };
 

@@ -25,10 +25,10 @@ export class SceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(this.renderer.domElement);
 
-    this.hemiLight = new THREE.HemisphereLight(0xd6e0f0, 0x3a3f46, 1.5);
-    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
+    this.hemiLight = new THREE.HemisphereLight(0xd6e0f0, 0x3a3f46, 1.9);
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 3.4);
     this.keyLight.position.set(5, 8, 4);
-    this.fillLight = new THREE.DirectionalLight(0xbfd0ff, 0.9);
+    this.fillLight = new THREE.DirectionalLight(0xbfd0ff, 1.2);
     this.fillLight.position.set(-5, -2, -6);
     this.headLight = new THREE.DirectionalLight(0xffffff, 0);
     this.headLight.position.set(0, 0, 1);

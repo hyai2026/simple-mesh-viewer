@@ -68,10 +68,17 @@ export class CameraRig {
     this.syncTargets();
     this._mode = mode;
     this.applyMode();
+    if (mode === 'arcball') this.syncArcState();
   }
 
   isActive(): boolean {
     return this.active;
+  }
+
+  activeTarget(): THREE.Vector3 {
+    if (this.mode === 'orbit') return this.orbit.target;
+    if (this.mode === 'trackball') return this.ball.target;
+    return this.arcTarget;
   }
 
   update(): void {
@@ -79,16 +86,6 @@ export class CameraRig {
       this.orbit.update();
     } else if (this.mode === 'trackball') {
       this.ball.update();
-    } else {
-      this.arc.update();
-    }
-    this.syncTargets();
-    const offset = this.camera.position.clone().sub(this.orbit.target);
-    const d = offset.length();
-    if (d > this.maxDist) {
-      this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.maxDist);
-    } else if (d < this.minDist && d > 1e-9) {
-      this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.minDist);
     }
   }
 
@@ -117,7 +114,7 @@ export class CameraRig {
     this.camera.position.copy(sphere.center).addScaledVector(dir, dist);
     this.orbit.update();
     this.ball.update();
-    this.arc.update();
+    this.syncArcState();
   }
 
   fitAll(worldBox: THREE.Box3): void {
@@ -128,6 +125,12 @@ export class CameraRig {
     this.orbit.dispose();
     this.ball.dispose();
     this.arc.dispose();
+  }
+
+  private syncArcState(): void {
+    const arcTarget = this.arcTarget;
+    arcTarget.copy(this.activeTarget());
+    this.arc.setCamera(this.camera);
   }
 
   private syncTargets(): void {

@@ -384,6 +384,16 @@ body {
   border-color: var(--accent);
 }
 
+.mini-toggle.pick-toggle {
+  font-size: 10.5px;
+  padding: 1px 6px;
+}
+
+.mini-toggle.pick-toggle.on {
+  color: var(--accent);
+  border-color: rgba(77, 178, 255, 0.55);
+}
+
 .mini-toggle.off {
   opacity: 0.35;
   text-decoration: line-through;

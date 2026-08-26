@@ -54,6 +54,7 @@ export class MeshView {
   private worldBox = new THREE.Box3();
   private bvhBuilt = false;
   private flatShading = true;
+  private pickable = true;
   private opacity = 1;
   private colors: Record<LayerKey, number> = { ...DEFAULT_COLORS };
 
@@ -226,9 +227,17 @@ export class MeshView {
   ensureBVH(): boolean {
     if (this.bvhBuilt || !this.surfaceGeo || !this.data?.renderIndex) return false;
     this.disposeBVH();
-    (this.surfaceGeo as { boundsTree?: unknown }).boundsTree = new MeshBVH(this.surfaceGeo);
+    this.surfaceGeo.boundsTree = new MeshBVH(this.surfaceGeo, { indirect: true });
     this.bvhBuilt = true;
     return true;
+  }
+
+  isPickable(): boolean {
+    return this.pickable;
+  }
+
+  setPickable(v: boolean): void {
+    this.pickable = v;
   }
 
   stats(): MeshStats | null {

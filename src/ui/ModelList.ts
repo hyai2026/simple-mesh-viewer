@@ -8,6 +8,7 @@ interface RowRefs {
   detail: HTMLElement;
   caret: HTMLButtonElement;
   toggles: Record<LayerKey, HTMLButtonElement>;
+  pickToggle: HTMLButtonElement;
   alpha: HTMLInputElement;
   alphaVal: HTMLElement;
   colors: Record<LayerKey, HTMLInputElement>;
@@ -48,6 +49,12 @@ export class ModelList {
         row.alphaVal.textContent = `${pct}%`;
       }
     });
+    bus.on('model-pickable-changed', ({ id, pickable }) => {
+      const row = this.rows.get(id);
+      if (!row) return;
+      row.pickToggle.classList.toggle('on', pickable);
+      row.pickToggle.classList.toggle('off', !pickable);
+    });
   }
 
   private addRow(id: string, name: string, stats: MeshStats): void {
@@ -65,6 +72,7 @@ export class ModelList {
         <button class="mini-toggle" data-layer="points">●点</button>
         <button class="mini-toggle" data-layer="edges">●边</button>
         <button class="mini-toggle" data-layer="surface">●面</button>
+        <button class="mini-toggle pick-toggle on" title="是否参与鼠标拾取">拾取</button>
         <input class="alpha" type="range" min="5" max="100" step="1" value="100" title="不透明度" />
         <span class="alpha-val">100%</span>
       </div>
@@ -114,8 +122,14 @@ export class ModelList {
         edges: q<HTMLInputElement>('input[type="color"][data-layer="edges"]'),
         surface: q<HTMLInputElement>('input[type="color"][data-layer="surface"]'),
       },
+      pickToggle: q<HTMLButtonElement>('button.pick-toggle'),
     };
     this.rows.set(id, row);
+
+    row.pickToggle.addEventListener('click', () => {
+      const next = !row.pickToggle.classList.contains('on');
+      this.bus.emit('set-model-pickable', { id, pickable: next });
+    });
 
     row.caret.addEventListener('click', () => {
       const open = row.detail.classList.toggle('hidden') === false;

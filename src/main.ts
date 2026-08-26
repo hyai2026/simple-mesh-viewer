@@ -176,6 +176,13 @@ bus.on('set-model-color', ({ id, layer, color }) => {
   view.setColor(layer, color);
 });
 
+bus.on('set-model-pickable', ({ id, pickable }) => {
+  const view = models.get(id);
+  if (!view) return;
+  view.setPickable(pickable);
+  bus.emit('model-pickable-changed', { id, pickable });
+});
+
 bus.on('set-shading', ({ flat }) => {
   for (const view of models.all()) view.setShading(flat);
   bus.emit('shading-changed', { flat });

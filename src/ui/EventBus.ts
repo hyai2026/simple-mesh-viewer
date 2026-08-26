@@ -54,6 +54,7 @@ export interface EventMap {
   'set-curvature-options': { type: CurvatureType; colormap: Colormap };
   'curvature-options-changed': { type: CurvatureType; colormap: Colormap };
   'curvature-range': { min: number; max: number };
+  'export-image': { scale: number; transparent: boolean };
   'busy': { active: boolean; label?: string };
 }
 

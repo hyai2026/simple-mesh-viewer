@@ -21,7 +21,11 @@ export class SceneManager {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 5000);
     this.camera.position.set(3, 2.4, 3);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      alpha: true,
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(this.renderer.domElement);
 
@@ -42,16 +46,18 @@ export class SceneManager {
     this.scene.add(this.grid);
     this.scene.add(this.root);
 
-    const resize = () => {
-      const w = Math.max(1, container.clientWidth);
-      const h = Math.max(1, container.clientHeight);
-      this.renderer.setSize(w, h, false);
-      this.camera.aspect = w / h;
-      this.camera.updateProjectionMatrix();
-    };
+    const resize = () => this.applySize();
     this.ro = new ResizeObserver(resize);
     this.ro.observe(container);
     resize();
+  }
+
+  private applySize(): void {
+    const w = Math.max(1, this.container.clientWidth);
+    const h = Math.max(1, this.container.clientHeight);
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
   }
 
   setGridVisible(v: boolean): void {
@@ -60,6 +66,33 @@ export class SceneManager {
 
   setHeadlight(on: boolean): void {
     this.headLight.intensity = on ? 2.5 : 0;
+  }
+
+  async renderToBlob(scale: number, transparentBg: boolean): Promise<Blob> {
+    const w = Math.max(1, this.container.clientWidth);
+    const h = Math.max(1, this.container.clientHeight);
+    const oldPixelRatio = this.renderer.getPixelRatio();
+    const oldBackground = this.scene.background;
+    try {
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(Math.round(w * scale), Math.round(h * scale), false);
+      if (transparentBg) {
+        this.scene.background = null;
+        this.renderer.setClearColor(0x000000, 0);
+      }
+      this.renderer.render(this.scene, this.camera);
+      return await new Promise<Blob>((resolve, reject) => {
+        this.renderer.domElement.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error('图像导出失败'))),
+          'image/png',
+        );
+      });
+    } finally {
+      this.scene.background = oldBackground;
+      this.renderer.setPixelRatio(oldPixelRatio);
+      this.applySize();
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   setBackground(colorHex: number): void {

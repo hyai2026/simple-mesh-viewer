@@ -16,6 +16,7 @@ import { hitsEqual, PickingEngine } from './render/PickingEngine';
 import { SceneManager } from './render/SceneManager';
 import { EnvironmentPanel } from './ui/EnvironmentPanel';
 import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
+import { ExportDialog } from './ui/ExportDialog';
 import { EventBus, type LightingParams, DEFAULT_LIGHTING } from './ui/EventBus';
 import { ModelList } from './ui/ModelList';
 import { SelectionPanel } from './ui/SelectionPanel';
@@ -50,6 +51,7 @@ new ModelList(listSection, bus);
 new EnvironmentPanel(envSection, bus);
 new DiagnosticsPanel(diagSection, bus);
 new SelectionPanel(selSection, bus, models);
+new ExportDialog(toolbarEl, bus);
 new StatusBar(statusEl, bus);
 
 let isLoading = false;
@@ -282,6 +284,30 @@ bus.on('set-headlight', ({ on }) => {
 bus.on('set-navgizmo', ({ visible }) => {
   navGizmo.setVisible(visible);
   bus.emit('navgizmo-changed', { visible });
+});
+
+function timestamp(): string {
+  const d = new Date();
+  const p = (v: number): string => String(v).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+bus.on('export-image', async ({ scale, transparent }) => {
+  bus.emit('busy', { active: true, label: '正在生成图像…' });
+  await new Promise((r) => setTimeout(r, 10));
+  try {
+    const blob = await sceneMgr.renderToBlob(scale, transparent);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mesh-viewer-${timestamp()}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    bus.emit('busy', { active: false });
+  } catch (err) {
+    bus.emit('busy', { active: false });
+    bus.emit('file-error', { message: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 function setCameraMode(mode: CameraMode): void {

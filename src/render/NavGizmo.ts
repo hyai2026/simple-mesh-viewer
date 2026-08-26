@@ -57,6 +57,9 @@ export class NavGizmo {
 
     this.helper = new ViewHelper(camera, this.overlay);
     this.helper.setLabels('X', 'Y', 'Z');
+    for (const child of this.helper.children) {
+      if ((child as THREE.Sprite).isSprite) child.scale.multiplyScalar(1.3);
+    }
     this.orthoCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0, 4);
     this.orthoCamera.position.set(0, 0, 2);
 

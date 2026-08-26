@@ -148,16 +148,32 @@ export class MeshView {
   }
 
   private applyOpacity(): void {
+    const solid = this.opacity > 0.999;
+    const transparent = !solid;
     if (this.surfaceMat) {
-      const transparent = this.opacity < 0.999;
       if (this.surfaceMat.transparent !== transparent) {
         this.surfaceMat.transparent = transparent;
         this.surfaceMat.needsUpdate = true;
       }
+      this.surfaceMat.depthWrite = solid;
       this.surfaceMat.opacity = this.opacity;
     }
-    if (this.edgesMat) this.edgesMat.opacity = this.opacity;
-    if (this.pointsMat) this.pointsMat.uniforms.uAlpha.value = this.opacity;
+    if (this.edgesMat) {
+      if (this.edgesMat.transparent !== transparent) {
+        this.edgesMat.transparent = transparent;
+        this.edgesMat.needsUpdate = true;
+      }
+      this.edgesMat.depthWrite = solid;
+      this.edgesMat.opacity = this.opacity;
+    }
+    if (this.pointsMat) {
+      if (this.pointsMat.transparent !== transparent) {
+        this.pointsMat.transparent = transparent;
+        this.pointsMat.needsUpdate = true;
+      }
+      this.pointsMat.depthWrite = solid;
+      this.pointsMat.uniforms.uAlpha.value = this.opacity;
+    }
   }
 
   get meshData(): MeshData | null {

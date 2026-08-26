@@ -31,7 +31,7 @@ void main() {
 
 export const DEFAULT_COLORS = {
   surface: 0xaeb6bf,
-  edges: 0x99a3ad,
+  edges: 0x616164,
   points: 0xffd166,
 } as const;
 

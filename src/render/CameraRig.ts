@@ -38,7 +38,6 @@ export class CameraRig {
     this.ball.zoomSpeed = 1.2;
     this.ball.panSpeed = 0.8;
     this.ball.dynamicDampingFactor = 0.08;
-    this.ball.staticMoving = true;
     this.ball.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
@@ -47,7 +46,6 @@ export class CameraRig {
 
     this.arc = new ArcballControls(camera, dom);
     this.arc.rotateSpeed = 1.2;
-    this.arc.enableAnimations = false;
 
     for (const c of [this.orbit, this.ball, this.arc]) {
       c.addEventListener('start', () => {
@@ -67,29 +65,13 @@ export class CameraRig {
 
   setMode(mode: CameraMode): void {
     if (mode === this._mode) return;
-    const current = this.activeTarget();
+    this.syncTargets();
     this._mode = mode;
     this.applyMode();
-    this.orbit.target.copy(current);
-    this.ball.target.copy(current);
-    this.arcTarget.copy(current);
-    this.syncArcState();
   }
 
   isActive(): boolean {
     return this.active;
-  }
-
-  activeTarget(): THREE.Vector3 {
-    if (this.mode === 'orbit') return this.orbit.target;
-    if (this.mode === 'trackball') return this.ball.target;
-    return this.arcTarget;
-  }
-
-  resyncFromCamera(): void {
-    if (this.mode === 'arcball') {
-      this.arc.setCamera(this.camera);
-    }
   }
 
   update(): void {
@@ -103,16 +85,10 @@ export class CameraRig {
     this.syncTargets();
     const offset = this.camera.position.clone().sub(this.orbit.target);
     const d = offset.length();
-    let clamped = false;
     if (d > this.maxDist) {
       this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.maxDist);
-      clamped = true;
     } else if (d < this.minDist && d > 1e-9) {
       this.camera.position.copy(this.orbit.target).addScaledVector(offset.normalize(), this.minDist);
-      clamped = true;
-    }
-    if (clamped && this.mode === 'arcball') {
-      this.arc.setCamera(this.camera);
     }
   }
 
@@ -142,7 +118,6 @@ export class CameraRig {
     this.orbit.update();
     this.ball.update();
     this.arc.update();
-    this.syncArcState();
   }
 
   fitAll(worldBox: THREE.Box3): void {
@@ -153,11 +128,6 @@ export class CameraRig {
     this.orbit.dispose();
     this.ball.dispose();
     this.arc.dispose();
-  }
-
-  private syncArcState(): void {
-    this.arcTarget.copy(this.orbit.target);
-    this.arc.setCamera(this.camera);
   }
 
   private syncTargets(): void {

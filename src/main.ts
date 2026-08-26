@@ -29,8 +29,6 @@ const sceneMgr = new SceneManager(viewport);
 const rig = new CameraRig(sceneMgr.camera, viewport);
 const models = new ModelRegistry(sceneMgr.root);
 const navGizmo = new NavGizmo(viewport, sceneMgr.camera);
-navGizmo.centerProvider = () => rig.activeTarget();
-navGizmo.onAnimationEnd = () => rig.resyncFromCamera();
 const picking = new PickingEngine(sceneMgr.camera);
 const selectHighlight = new HighlightLayer();
 const hoverHighlight = new HighlightLayer();
@@ -331,9 +329,9 @@ window.addEventListener('keydown', (e) => {
 });
 
 sceneMgr.start(
-  () => {
+  (dt) => {
     if (!navGizmo.isAnimating) rig.update();
-    navGizmo.update();
+    navGizmo.update(dt);
     if (pointerDirty && !rig.isActive() && !navGizmo.isAnimating && lastClient && !isLoading) {
       pointerDirty = false;
       const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);

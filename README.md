@@ -45,3 +45,9 @@ render/ 场景管理、相机（球面/轨道双控制器）、视向轴 Gizmo�
         三图层 MeshView、BVH/空间网格拾取、高亮                        ← 扩展点② 新图层
 ui/     类型化事件总线、工具栏、模型列表、环境光照、选中面板、状态栏 ← 扩展点③ 条件显示等功能
 ```
+
+## 许可证
+
+本项目基于 [AGPL-3.0-or-later](./LICENSE) 发布。完整协议文本见 `LICENSE` 文件；
+所使用的第三方库（three.js、three-mesh-bvh，均为 MIT）的版权声明见
+[THIRD-PARTY-NOTICES](./THIRD-PARTY-NOTICES)。

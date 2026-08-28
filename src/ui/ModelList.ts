@@ -7,6 +7,7 @@ interface RowRefs {
   root: HTMLElement;
   detail: HTMLElement;
   caret: HTMLButtonElement;
+  eyeToggle: HTMLButtonElement;
   toggles: Record<LayerKey, HTMLButtonElement>;
   pickToggle: HTMLButtonElement;
   alpha: HTMLInputElement;
@@ -55,6 +56,13 @@ export class ModelList {
       row.pickToggle.classList.toggle('on', pickable);
       row.pickToggle.classList.toggle('off', !pickable);
     });
+    bus.on('model-shown-changed', ({ id, shown }) => {
+      const row = this.rows.get(id);
+      if (!row) return;
+      row.eyeToggle.classList.toggle('on', shown);
+      row.eyeToggle.classList.toggle('off', !shown);
+      row.root.classList.toggle('model-hidden', !shown);
+    });
   }
 
   private addRow(id: string, name: string, stats: MeshStats): void {
@@ -66,6 +74,10 @@ export class ModelList {
       <div class="model-head">
         <button class="caret" title="详细信息">▸</button>
         <span class="model-name" title="${escapeAttr(name)}">${escapeHtml(name)}</span>
+        <button class="icon-btn eye on" title="显示/隐藏模型">
+          <svg class="icon-on" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="icon-off" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
         <button class="icon-btn remove" title="移除模型">✕</button>
       </div>
       <div class="model-controls">
@@ -123,8 +135,14 @@ export class ModelList {
         surface: q<HTMLInputElement>('input[type="color"][data-layer="surface"]'),
       },
       pickToggle: q<HTMLButtonElement>('button.pick-toggle'),
+      eyeToggle: q<HTMLButtonElement>('button.eye'),
     };
     this.rows.set(id, row);
+
+    row.eyeToggle.addEventListener('click', () => {
+      const next = !row.eyeToggle.classList.contains('on');
+      this.bus.emit('set-model-shown', { id, shown: next });
+    });
 
     row.pickToggle.addEventListener('click', () => {
       const next = !row.pickToggle.classList.contains('on');

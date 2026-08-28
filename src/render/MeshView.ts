@@ -157,6 +157,7 @@ export class MeshView {
   private edgesMat: THREE.LineBasicMaterial | null = null;
   private edgesObj: THREE.LineSegments | null = null;
   private vis: LayerVisibility = { points: false, edges: false, surface: false };
+  private shown = true;
   private worldBox = new THREE.Box3();
   private bvhBuilt = false;
   private flatShading = true;
@@ -415,6 +416,15 @@ export class MeshView {
     this.pickable = v;
   }
 
+  isShown(): boolean {
+    return this.shown;
+  }
+
+  setShown(v: boolean): void {
+    this.shown = v;
+    this.applyVis();
+  }
+
   stats(): MeshStats | null {
     return this.data ? meshStats(this.data) : null;
   }
@@ -470,9 +480,9 @@ export class MeshView {
   }
 
   private applyVis(): void {
-    if (this.surfaceMesh) this.surfaceMesh.visible = this.vis.surface;
-    if (this.edgesObj) this.edgesObj.visible = this.vis.edges;
-    if (this.pointsObj) this.pointsObj.visible = this.vis.points;
+    if (this.surfaceMesh) this.surfaceMesh.visible = this.vis.surface && this.shown;
+    if (this.edgesObj) this.edgesObj.visible = this.vis.edges && this.shown;
+    if (this.pointsObj) this.pointsObj.visible = this.vis.points && this.shown;
   }
 }
 

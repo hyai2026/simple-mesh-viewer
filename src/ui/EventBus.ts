@@ -33,6 +33,8 @@ export interface EventMap {
   'set-model-color': { id: string; layer: LayerKey; color: number };
   'set-model-pickable': { id: string; pickable: boolean };
   'model-pickable-changed': { id: string; pickable: boolean };
+  'set-model-shown': { id: string; shown: boolean };
+  'model-shown-changed': { id: string; shown: boolean };
   'set-shading': { flat: boolean };
   'shading-changed': { flat: boolean };
   'set-grid': { visible: boolean };

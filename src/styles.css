@@ -378,6 +378,35 @@ body {
   color: var(--danger);
 }
 
+.icon-btn.eye {
+  display: inline-flex;
+  align-items: center;
+}
+
+.icon-btn.eye:hover {
+  color: var(--accent);
+}
+
+.icon-btn.eye .icon-off {
+  display: none;
+}
+
+.icon-btn.eye.off {
+  opacity: 0.55;
+}
+
+.icon-btn.eye.off .icon-on {
+  display: none;
+}
+
+.icon-btn.eye.off .icon-off {
+  display: block;
+}
+
+.model-item.model-hidden .model-name {
+  opacity: 0.4;
+}
+
 .model-controls {
   display: flex;
   align-items: center;

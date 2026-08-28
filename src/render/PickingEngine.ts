@@ -103,7 +103,7 @@ export class PickingEngine {
     let anyPoints = false;
     let anyEdges = false;
     for (const entry of this.entries.values()) {
-      if (!entry.view.isPickable()) continue;
+      if (!entry.view.isShown() || !entry.view.isPickable()) continue;
       const vis = entry.view.getVisibility();
       if (vis.points) anyPoints = true;
       if (vis.edges && entry.data.edgeCount > 0) anyEdges = true;
@@ -111,7 +111,7 @@ export class PickingEngine {
 
     let faceBest: { entry: Entry; hit: Intersection } | null = null;
     for (const entry of this.entries.values()) {
-      if (!entry.view.isPickable()) continue;
+      if (!entry.view.isShown() || !entry.view.isPickable()) continue;
       if (!entry.view.getVisibility().surface) continue;
       const mesh = entry.view.getSurfaceMesh();
       if (!mesh) continue;
@@ -124,7 +124,7 @@ export class PickingEngine {
     const vertexRanks: VertexRanked[] = [];
     const radiusD2 = radiusPx * radiusPx;
     for (const entry of this.entries.values()) {
-      if (!entry.view.isPickable()) continue;
+      if (!entry.view.isShown() || !entry.view.isPickable()) continue;
       this.ensureSpatial(entry);
       if (!entry.grid) continue;
       const cand: number[] = [];
@@ -217,7 +217,7 @@ export class PickingEngine {
     this.ocRc.near = 0;
     this.ocRc.far = Math.max(dist - Math.max(dist * 1e-3, 1e-5), 1e-6);
     for (const entry of this.entries.values()) {
-      if (!entry.view.getVisibility().surface) continue;
+      if (!entry.view.isShown() || !entry.view.getVisibility().surface) continue;
       const mesh = entry.view.getSurfaceMesh();
       if (!mesh) continue;
       if (this.ocRc.intersectObject(mesh as ThreeMesh, false).length > 0) return false;
@@ -289,7 +289,7 @@ export class PickingEngine {
   ): Ranked | null {
     let best: Ranked | null = null;
     for (const entry of this.entries.values()) {
-      if (!entry.view.isPickable()) continue;
+      if (!entry.view.isShown() || !entry.view.isPickable()) continue;
       if (!entry.view.getVisibility().edges || entry.data.edgeCount === 0) continue;
       const r = this.pickEdgeIn(entry, clientX, clientY, rect, radiusPx);
       if (r && (!best || r.d2 < best.d2)) best = r;

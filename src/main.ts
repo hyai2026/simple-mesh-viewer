@@ -199,6 +199,22 @@ bus.on('set-model-pickable', ({ id, pickable }) => {
   bus.emit('model-pickable-changed', { id, pickable });
 });
 
+bus.on('set-model-shown', ({ id, shown }) => {
+  const view = models.get(id);
+  if (!view) return;
+  view.setShown(shown);
+  if (selHit?.modelId === id) {
+    selHit = null;
+    bus.emit('selection-changed', null);
+  }
+  if (hoverHit?.modelId === id) {
+    hoverHit = null;
+    bus.emit('hover-changed', null);
+  }
+  refreshHighlights();
+  bus.emit('model-shown-changed', { id, shown });
+});
+
 function scalarsFor(view: MeshView): NormalizedScalars {
   const data = view.meshData;
   if (!data) return { data: new Float32Array(0), min: 0, max: 0 };
@@ -449,3 +465,4 @@ sceneMgr.start(
   },
   () => navGizmo.render(),
 );
+

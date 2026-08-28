@@ -20,6 +20,8 @@ export class CameraRig {
   private active = false;
   private minDist = 1e-4;
   private maxDist = 5000;
+  private sceneRadius = 1;
+  readonly homeDir = new THREE.Vector3();
 
   constructor(private camera: THREE.PerspectiveCamera, dom: HTMLElement) {
     this.orbit = new OrbitControls(camera, dom);
@@ -57,6 +59,7 @@ export class CameraRig {
     }
 
     this.applyMode();
+    this.camera.getWorldDirection(this.homeDir).negate();
   }
 
   get mode(): CameraMode {
@@ -89,21 +92,24 @@ export class CameraRig {
     }
   }
 
-  frameBox(box: THREE.Box3, padding = 1.25): void {
+  frameBox(box: THREE.Box3, padding = 1.25, dirOverride?: THREE.Vector3): void {
     if (box.isEmpty()) return;
     const sphere = box.getBoundingSphere(new THREE.Sphere());
-    const r = Math.max(sphere.radius, 1e-6);
+    const r = Math.max(sphere.radius, this.sceneRadius * 0.005, 1e-9);
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
     const fovH = 2 * Math.atan(Math.tan(fovV / 2) * this.camera.aspect);
     const dist = (r / Math.sin(Math.min(fovV, fovH) / 2)) * padding;
-    const dir = this.camera.position.clone().sub(this.orbit.target);
+    const dir = dirOverride
+      ? dirOverride.clone()
+      : this.camera.getWorldDirection(new THREE.Vector3()).negate();
     if (dir.lengthSq() < 1e-12) dir.set(0.6, 0.45, 1).normalize();
     else dir.normalize();
-    this.camera.near = Math.max(dist / 1000, r / 10000, 1e-6);
-    this.camera.far = dist + r * 200;
+    this.camera.up.set(0, 1, 0);
+    this.camera.near = Math.max(dist / 1000, 1e-6);
+    this.camera.far = Math.max(dist + r * 200, dist * 2 + this.sceneRadius * 2.5);
     this.camera.updateProjectionMatrix();
     this.minDist = Math.max(r * 0.0005, this.camera.near);
-    this.maxDist = Math.max(dist * 50, r * 500);
+    this.maxDist = Math.max(dist * 50, this.sceneRadius * 10);
     this.orbit.minDistance = this.minDist;
     this.orbit.maxDistance = this.maxDist;
     this.arc.minDistance = this.minDist;
@@ -117,8 +123,17 @@ export class CameraRig {
     this.syncArcState();
   }
 
-  fitAll(worldBox: THREE.Box3): void {
-    this.frameBox(worldBox);
+  fitAll(worldBox: THREE.Box3, dir?: THREE.Vector3): void {
+    if (worldBox.isEmpty()) return;
+    this.sceneRadius = Math.max(worldBox.getBoundingSphere(new THREE.Sphere()).radius, 1e-9);
+    this.frameBox(worldBox, 1.25, dir);
+  }
+
+  adoptExternalPose(center: THREE.Vector3): void {
+    this.orbit.target.copy(center);
+    this.ball.target.copy(center);
+    this.arcTarget.copy(center);
+    this.syncArcState();
   }
 
   dispose(): void {

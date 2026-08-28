@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
+import type { Colormap } from '../core/Curvature';
 import type { MeshData, MeshStats } from '../core/MeshData';
 import { meshStats } from '../core/MeshData';
 
@@ -118,11 +119,11 @@ void main() {
   gl_FragColor = vec4(col * l, uAlpha);
 }`;
 
-function createCurvatureMaterial(): THREE.ShaderMaterial {
+function createCurvatureMaterial(colormap: Colormap): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uAlpha: { value: 1 },
-      uColormap: { value: 0 },
+      uColormap: { value: colormap === 'bwr' ? 1 : 0 },
     },
     vertexShader: CURVATURE_VERT,
     fragmentShader: CURVATURE_FRAG,
@@ -164,6 +165,7 @@ export class MeshView {
   private diagZebraMat: THREE.ShaderMaterial | null = null;
   private diagZebraUniforms: { uStripeCount: { value: number } } | null = null;
   private diagCurvMat: THREE.ShaderMaterial | null = null;
+  private colormap: Colormap = 'jet';
   private stripeCount = ZEBRA_DEFAULT_STRIPE_COUNT;
   private opacity = 1;
   private colors: Record<LayerKey, number> = { ...DEFAULT_COLORS };
@@ -260,7 +262,7 @@ export class MeshView {
         this.surfaceMesh.material = this.diagZebraMat;
         break;
       case 'curvature':
-        if (!this.diagCurvMat) this.diagCurvMat = createCurvatureMaterial();
+        if (!this.diagCurvMat) this.diagCurvMat = createCurvatureMaterial(this.colormap);
         this.surfaceMesh.material = this.diagCurvMat;
         break;
       default:
@@ -272,6 +274,13 @@ export class MeshView {
   setCurvatureScalars(scalars: Float32Array): void {
     if (!this.surfaceGeo) return;
     this.surfaceGeo.setAttribute('aScalar', new THREE.BufferAttribute(scalars, 1));
+  }
+
+  setColormap(map: Colormap): void {
+    this.colormap = map;
+    if (this.diagCurvMat) {
+      this.diagCurvMat.uniforms.uColormap.value = map === 'bwr' ? 1 : 0;
+    }
   }
 
   getStripeCount(): number {

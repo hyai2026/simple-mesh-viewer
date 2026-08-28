@@ -8,8 +8,13 @@ export class NavGizmo {
   private renderer: THREE.WebGLRenderer;
   private overlay: HTMLDivElement;
   private visible = true;
+  private wasAnimating = false;
 
-  constructor(container: HTMLElement, camera: THREE.PerspectiveCamera) {
+  constructor(
+    container: HTMLElement,
+    camera: THREE.PerspectiveCamera,
+    private getFocusPoint: () => THREE.Vector3,
+  ) {
     this.overlay = document.createElement('div');
     this.overlay.className = 'nav-gizmo';
     const canvas = document.createElement('canvas');
@@ -29,7 +34,10 @@ export class NavGizmo {
     for (const type of ['pointerdown', 'pointermove', 'pointerup'] as const) {
       this.overlay.addEventListener(type, (e) => {
         e.stopPropagation();
-        if (type === 'pointerup') this.helper.handleClick(e);
+        if (type === 'pointerup') {
+          this.helper.center.copy(this.getFocusPoint());
+          this.helper.handleClick(e);
+        }
       });
     }
   }
@@ -42,13 +50,20 @@ export class NavGizmo {
     return this.helper.animating;
   }
 
+  get focusPoint(): THREE.Vector3 {
+    return this.helper.center;
+  }
+
   setVisible(v: boolean): void {
     this.visible = v;
     this.overlay.style.display = v ? 'block' : 'none';
   }
 
-  update(dt: number): void {
+  update(dt: number): boolean {
     if (this.helper.animating) this.helper.update(dt);
+    const settled = this.wasAnimating && !this.helper.animating;
+    this.wasAnimating = this.helper.animating;
+    return settled;
   }
 
   render(): void {

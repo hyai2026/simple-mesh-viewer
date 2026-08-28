@@ -32,7 +32,7 @@ const bus = new EventBus();
 const sceneMgr = new SceneManager(viewport);
 const rig = new CameraRig(sceneMgr.camera, viewport);
 const models = new ModelRegistry(sceneMgr.root);
-const navGizmo = new NavGizmo(viewport, sceneMgr.camera);
+const navGizmo = new NavGizmo(viewport, sceneMgr.camera, () => rig.activeTarget());
 const picking = new PickingEngine(sceneMgr.camera);
 const selectHighlight = new HighlightLayer();
 const hoverHighlight = new HighlightLayer();
@@ -214,6 +214,7 @@ function scalarsFor(view: MeshView): NormalizedScalars {
 function applyDiagnosticToView(view: MeshView): void {
   if (!view.meshData || !view.hasLayer('surface')) return;
     if (surfaceDiagnostic === 'curvature') {
+      view.setColormap(curvOpts.colormap);
       const { data: scalars, min, max } = scalarsFor(view);
       view.setCurvatureScalars(scalars);
       bus.emit('curvature-range', { min, max });
@@ -257,6 +258,7 @@ bus.on('set-curvature-options', (opts) => {
   setTimeout(() => {
     for (const view of models.all()) {
       if (!view.meshData || !view.hasLayer('surface')) continue;
+      view.setColormap(curvOpts.colormap);
       const { data: scalars, min, max } = scalarsFor(view);
       view.setCurvatureScalars(scalars);
       bus.emit('curvature-range', { min, max });
@@ -318,7 +320,7 @@ function setCameraMode(mode: CameraMode): void {
 bus.on('set-camera-mode', ({ mode }) => setCameraMode(mode));
 
 function resetView(): void {
-  rig.fitAll(models.unionBox(new THREE.Box3()));
+  rig.fitAll(models.unionBox(new THREE.Box3()), rig.homeDir);
 }
 
 bus.on('view-reset', resetView);
@@ -435,7 +437,7 @@ window.addEventListener('keydown', (e) => {
 sceneMgr.start(
   (dt) => {
     if (!navGizmo.isAnimating) rig.update();
-    navGizmo.update(dt);
+    if (navGizmo.update(dt)) rig.adoptExternalPose(navGizmo.focusPoint);
     if (pointerDirty && !rig.isActive() && !navGizmo.isAnimating && lastClient && !isLoading) {
       pointerDirty = false;
       const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);

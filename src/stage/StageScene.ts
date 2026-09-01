@@ -15,6 +15,7 @@ export interface StageEnvParams {
   shadowOpacity: number;
   exposure: number;
   toneMapping: 'aces' | 'neutral' | 'none';
+  grid: boolean;
 }
 
 export const STUDIO_DARK: StageEnvParams = {
@@ -29,6 +30,7 @@ export const STUDIO_DARK: StageEnvParams = {
   shadowOpacity: 0.42,
   exposure: 1.0,
   toneMapping: 'aces',
+  grid: true,
 };
 
 export const PAPER_LIGHT: StageEnvParams = {
@@ -43,6 +45,7 @@ export const PAPER_LIGHT: StageEnvParams = {
   shadowOpacity: 0.22,
   exposure: 1.0,
   toneMapping: 'neutral',
+  grid: true,
 };
 
 export const STAGE_PRESETS: Record<StagePreset, StageEnvParams> = {
@@ -70,7 +73,6 @@ export class StageScene {
   private bgTexture: THREE.CanvasTexture | null = null;
   private env: StageEnvParams = { ...STUDIO_DARK };
   private groundOn = true;
-  private gridOn = true;
 
   constructor() {
     this.scene.add(this.stageRoot);
@@ -130,20 +132,12 @@ export class StageScene {
       this.shadowMat.opacity = p.shadowOpacity;
     }
     this.ground.visible = p.ground !== 'none' && this.groundOn;
+    this.grid.visible = p.grid;
   }
 
   setGroundVisible(v: boolean): void {
     this.groundOn = v;
     this.ground.visible = this.env.ground !== 'none' && this.groundOn;
-  }
-
-  setGridVisible(v: boolean): void {
-    this.gridOn = v;
-    this.grid.visible = v;
-  }
-
-  gridVisible(): boolean {
-    return this.gridOn;
   }
 
   fitShadowCamera(box: THREE.Box3): void {

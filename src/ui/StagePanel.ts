@@ -1,7 +1,12 @@
 import type { MeshStats } from '../core/MeshData';
 import type { LayerKey, LayerVisibility } from '../render/MeshView';
 import { DEFAULT_COLORS } from '../render/MeshView';
-import type { EventBus, StageTransformPayload } from './EventBus';
+import type {
+  EventBus,
+  StageGizmoMode,
+  StageGizmoSpace,
+  StageTransformPayload,
+} from './EventBus';
 import type { StageSelection } from '../stage/StageController';
 import type { StageEnvParams } from '../stage/StageScene';
 import type { StageGroupInfo, StageTreeSnapshot } from '../stage/StageModel';
@@ -22,12 +27,24 @@ const TEMPLATE = `
   <div class="stage-actions">
     <button id="stg-group" class="btn small" disabled>成组</button>
     <button id="stg-ungroup" class="btn small" disabled>解组</button>
+    <button id="stg-arrange" class="btn small" title="自动网格排布（PCA 摆正 + 统一缩放 + 贴地）">自动排布</button>
     <span class="hint-text">勾选 ≥2 个模型后成组，双击组名重命名</span>
   </div>
   <div id="stg-tree">${EMPTY_HINT}</div>
 </div>
 <div class="panel-section stage-only">
   <h3>变换</h3>
+  <div class="xf-tools">
+    <div class="seg" id="seg-gizmo">
+      <button id="btn-g-translate" class="seg-btn active" title="移动 (W)">移动</button>
+      <button id="btn-g-rotate" class="seg-btn" title="旋转 (E)">旋转</button>
+      <button id="btn-g-scale" class="seg-btn" title="缩放 (R)">缩放</button>
+    </div>
+    <div class="seg" id="seg-space">
+      <button id="btn-sp-world" class="seg-btn active">世界</button>
+      <button id="btn-sp-local" class="seg-btn">局部</button>
+    </div>
+  </div>
   <div id="stg-xf">
     <div class="xf-grid">
       <span class="xf-label">位置</span>
@@ -60,6 +77,7 @@ const TEMPLATE = `
   <div class="light-row"><span>背景(上)</span><input id="stg-bgtop" type="color" /></div>
   <div class="light-row"><span>背景(下)</span><input id="stg-bgbottom" type="color" /></div>
   <div class="light-row"><span>地面色</span><input id="stg-gcolor" type="color" /></div>
+  <label class="chip"><input type="checkbox" id="stg-grid" checked /><span>网格地面 (G)</span></label>
   <div class="seg" id="stg-ground">
     <button id="g-shadow" class="seg-btn active">承接阴影</button>
     <button id="g-solid" class="seg-btn">实色</button>
@@ -134,6 +152,33 @@ export class StagePanel {
       if (this.selection.unitId && this.tree?.groups.some((g) => g.id === this.selection.unitId)) {
         bus.emit('stage-ungroup', { groupId: this.selection.unitId });
       }
+    });
+    q<HTMLButtonElement>('#stg-arrange').addEventListener('click', () =>
+      bus.emit('stage-arrange', {}),
+    );
+
+    const gizmoButtons: Array<[HTMLButtonElement, StageGizmoMode]> = [
+      [q<HTMLButtonElement>('#btn-g-translate'), 'translate'],
+      [q<HTMLButtonElement>('#btn-g-rotate'), 'rotate'],
+      [q<HTMLButtonElement>('#btn-g-scale'), 'scale'],
+    ];
+    const spaceButtons: Array<[HTMLButtonElement, StageGizmoSpace]> = [
+      [q<HTMLButtonElement>('#btn-sp-world'), 'world'],
+      [q<HTMLButtonElement>('#btn-sp-local'), 'local'],
+    ];
+    let curMode: StageGizmoMode = 'translate';
+    let curSpace: StageGizmoSpace = 'world';
+    for (const [btn, m] of gizmoButtons) {
+      btn.addEventListener('click', () => bus.emit('stage-gizmo', { mode: m, space: curSpace }));
+    }
+    for (const [btn, m] of spaceButtons) {
+      btn.addEventListener('click', () => bus.emit('stage-gizmo', { mode: curMode, space: m }));
+    }
+    bus.on('stage-gizmo-changed', ({ mode, space }) => {
+      curMode = mode;
+      curSpace = space;
+      for (const [btn, m] of gizmoButtons) btn.classList.toggle('active', m === mode);
+      for (const [btn, m] of spaceButtons) btn.classList.toggle('active', m === space);
     });
     this.xfReset.addEventListener('click', () => {
       if (!this.selection.unitId) return;
@@ -521,6 +566,9 @@ export class StagePanel {
       this.bus.emit('stage-env', { bgBottom: bgBottom.value }),
     );
     gColor.addEventListener('input', () => this.bus.emit('stage-env', { groundColor: gColor.value }));
+    q<HTMLInputElement>('#stg-grid').addEventListener('change', (e) =>
+      this.bus.emit('stage-env', { grid: (e.target as HTMLInputElement).checked }),
+    );
 
     q<HTMLButtonElement>('#preset-studio').addEventListener('click', () =>
       this.bus.emit('stage-env', { preset: 'studioDark' }),
@@ -559,6 +607,7 @@ export class StagePanel {
     (q('#stg-bgtop') as HTMLInputElement).value = env.bgTop;
     (q('#stg-bgbottom') as HTMLInputElement).value = env.bgBottom;
     (q('#stg-gcolor') as HTMLInputElement).value = env.groundColor;
+    (q('#stg-grid') as HTMLInputElement).checked = env.grid;
     q('#stg-key-v').textContent = env.key.toFixed(1);
     q('#stg-fill-v').textContent = env.fill.toFixed(2);
     q('#stg-amb-v').textContent = env.ambient.toFixed(2);

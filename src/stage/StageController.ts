@@ -50,7 +50,6 @@ export class StageController {
     this.tc.addEventListener('mouseDown', () => this.setRigGated(true));
     this.tc.addEventListener('mouseUp', () => this.setRigGated(false));
     this.tc.addEventListener('objectChange', () => this.emitTransform());
-    dom.addEventListener('pointermove', (e) => this.updateRigGate(e));
     window.addEventListener('pointerup', () => {
       if (!this.tc.dragging) this.setRigGated(false);
     });
@@ -73,26 +72,12 @@ export class StageController {
     this.rig.setEnabled(!on);
   }
 
-  private updateRigGate(e: PointerEvent): void {
-    if (this.tc.dragging) return;
-    if (e.buttons !== 0) return;
-    if (this.tc.axis != null) {
-      if (!this.rig.isActive()) this.setRigGated(true);
-    } else {
-      this.setRigGated(false);
-    }
-  }
-
   get scene(): THREE.Scene {
     return this.stage.scene;
   }
 
   isStaged(): boolean {
     return this.staged;
-  }
-
-  isGizmoHovered(): boolean {
-    return this.tc.axis != null;
   }
 
   box(): THREE.Box3 {
@@ -163,7 +148,7 @@ export class StageController {
   }
 
   handleClick(e: { clientX: number; clientY: number }): void {
-    if (this.isGizmoHovered()) return;
+    if (this.tc.dragging) return;
     const rect = this.dom.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -188,7 +173,7 @@ export class StageController {
   }
 
   toggleGrid(): void {
-    this.stage.setGridVisible(!this.stage.gridVisible());
+    this.applyEnvParams({ grid: !this.stage.params().grid });
   }
 
   setGroundVisible(v: boolean): void {
@@ -255,6 +240,7 @@ export class StageController {
       if (ids.length < 2) return;
       const info = this.data.createGroup(ids);
       if (this.staged) {
+        for (const id of ids) this.pivots.get(id)!.updateWorldMatrix(true, true);
         const box = new THREE.Box3();
         for (const id of ids) box.expandByObject(this.pivots.get(id)!);
         const center = box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
@@ -301,20 +287,22 @@ export class StageController {
 
     this.bus.on('stage-arrange', () => this.arrange());
 
-    this.bus.on('stage-env', (partial) => {
-      if (partial.preset && Object.keys(partial).length === 1) {
-        this.presetStates[this.currentPreset] = this.stage.params();
-        this.currentPreset = partial.preset;
-        this.stage.applyEnv({ ...this.presetStates[partial.preset] });
-      } else {
-        const merged = { ...this.stage.params(), ...partial };
-        this.currentPreset = merged.preset;
-        this.stage.applyEnv(merged);
-        this.presetStates[merged.preset] = { ...merged };
-      }
-      this.sceneMgr.applyProfile(this.profileParams());
-      this.bus.emit('stage-env-changed', this.stage.params());
-    });
+    this.bus.on('stage-env', (partial) => this.applyEnvParams(partial));
+  }
+
+  private applyEnvParams(partial: Partial<StageEnvParams>): void {
+    if (partial.preset && Object.keys(partial).length === 1) {
+      this.presetStates[this.currentPreset] = this.stage.params();
+      this.currentPreset = partial.preset;
+      this.stage.applyEnv({ ...this.presetStates[partial.preset] });
+    } else {
+      const merged = { ...this.stage.params(), ...partial };
+      this.currentPreset = merged.preset;
+      this.stage.applyEnv(merged);
+      this.presetStates[merged.preset] = { ...merged };
+    }
+    this.sceneMgr.applyProfile(this.profileParams());
+    this.bus.emit('stage-env-changed', this.stage.params());
   }
 
   private rebuildHierarchy(): void {

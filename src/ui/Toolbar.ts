@@ -1,5 +1,5 @@
 import type { CameraMode } from '../render/CameraRig';
-import type { EventBus, StageGizmoMode, StageGizmoSpace } from './EventBus';
+import type { EventBus } from './EventBus';
 
 const TEMPLATE = `
 <span class="brand">Mesh Viewer</span>
@@ -10,25 +10,14 @@ const TEMPLATE = `
 <span class="sep"></span>
 <button id="btn-open" class="btn primary">打开…</button>
 <input id="file-input" type="file" accept=".obj,.ply" multiple hidden />
-<div class="seg stage-only" id="seg-gizmo">
-  <button id="btn-g-translate" class="seg-btn active" title="移动 (W)">移动</button>
-  <button id="btn-g-rotate" class="seg-btn" title="旋转 (E)">旋转</button>
-  <button id="btn-g-scale" class="seg-btn" title="缩放 (R)">缩放</button>
-</div>
-<div class="seg stage-only" id="seg-space">
-  <button id="btn-sp-world" class="seg-btn active">世界</button>
-  <button id="btn-sp-local" class="seg-btn">局部</button>
-</div>
-<button id="btn-arrange" class="btn stage-only" title="自动网格排布（PCA 摆正 + 统一缩放 + 贴地）">自动排布</button>
-<span class="sep analysis-only"></span>
-<div class="seg analysis-only">
-  <button id="btn-flat" class="seg-btn active">平直</button>
-  <button id="btn-smooth" class="seg-btn">平滑</button>
-</div>
 <div class="seg">
   <button id="btn-orbit" class="seg-btn">轨道</button>
   <button id="btn-ball" class="seg-btn">球面</button>
   <button id="btn-arc" class="seg-btn active">弧球</button>
+</div>
+<div class="seg analysis-only">
+  <button id="btn-flat" class="seg-btn active">平直</button>
+  <button id="btn-smooth" class="seg-btn">平滑</button>
 </div>
 <div class="seg analysis-only">
   <button id="btn-diag-none" class="seg-btn active">无</button>
@@ -133,39 +122,6 @@ export class Toolbar {
       this.chkGrid.checked = visible;
     });
     bus.on('camera-mode-changed', ({ mode }) => setCamButtons(mode));
-
-    const gizmoButtons: Array<[HTMLButtonElement, StageGizmoMode]> = [
-      [q<HTMLButtonElement>('#btn-g-translate'), 'translate'],
-      [q<HTMLButtonElement>('#btn-g-rotate'), 'rotate'],
-      [q<HTMLButtonElement>('#btn-g-scale'), 'scale'],
-    ];
-    const spaceButtons: Array<[HTMLButtonElement, StageGizmoSpace]> = [
-      [q<HTMLButtonElement>('#btn-sp-world'), 'world'],
-      [q<HTMLButtonElement>('#btn-sp-local'), 'local'],
-    ];
-    let curSpace: StageGizmoSpace = 'world';
-    const currentGizmoMode = (): StageGizmoMode => {
-      for (const [btn, m] of gizmoButtons) if (btn.classList.contains('active')) return m;
-      return 'translate';
-    };
-    const setGizmoButtons = (mode: StageGizmoMode, space: StageGizmoSpace): void => {
-      curSpace = space;
-      for (const [btn, m] of gizmoButtons) btn.classList.toggle('active', m === mode);
-      for (const [btn, m] of spaceButtons) btn.classList.toggle('active', m === space);
-    };
-    for (const [btn, m] of gizmoButtons) {
-      btn.addEventListener('click', () => bus.emit('stage-gizmo', { mode: m, space: curSpace }));
-    }
-    for (const [btn, m] of spaceButtons) {
-      btn.addEventListener('click', () =>
-        bus.emit('stage-gizmo', { mode: currentGizmoMode(), space: m }),
-      );
-    }
-    bus.on('stage-gizmo-changed', ({ mode, space }) => setGizmoButtons(mode, space));
-
-    q<HTMLButtonElement>('#btn-arrange').addEventListener('click', () =>
-      bus.emit('stage-arrange', {}),
-    );
   }
 
   toggleGrid(): void {

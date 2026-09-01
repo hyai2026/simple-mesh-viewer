@@ -784,3 +784,9 @@ body:not(.mode-stage) .stage-only {
 .stage-model-wrap.model-hidden > .stage-model-row {
   opacity: 0.45;
 }
+
+.xf-tools {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}

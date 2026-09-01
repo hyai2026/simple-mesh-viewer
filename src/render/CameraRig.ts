@@ -40,7 +40,7 @@ export class CameraRig {
     this.ball.rotateSpeed = 1.5;
     this.ball.zoomSpeed = 1.2;
     this.ball.panSpeed = 0.8;
-    this.ball.dynamicDampingFactor = 0.08;
+    this.ball.dynamicDampingFactor = 1.0;
     this.ball.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,

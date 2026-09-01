@@ -26,6 +26,7 @@ const TEMPLATE = `
 </div>
 <label class="chip analysis-only"><input type="checkbox" id="chk-headlight" checked /><span>头灯</span></label>
 <label class="chip"><input type="checkbox" id="chk-navgizmo" checked /><span>视向轴</span></label>
+<label class="chip stage-only"><input type="checkbox" id="chk-stage-grid" checked /><span>网格地面</span></label>
 <span class="sep analysis-only"></span>
 <label class="chip analysis-only"><input type="checkbox" id="chk-grid" checked /><span>网格地面</span></label>
 <button id="btn-reset" class="btn">复位视图</button>
@@ -122,6 +123,14 @@ export class Toolbar {
       this.chkGrid.checked = visible;
     });
     bus.on('camera-mode-changed', ({ mode }) => setCamButtons(mode));
+
+    const stageGrid = q<HTMLInputElement>('#chk-stage-grid');
+    stageGrid.addEventListener('change', () =>
+      bus.emit('stage-env', { grid: stageGrid.checked }),
+    );
+    bus.on('stage-env-changed', ({ grid }) => {
+      stageGrid.checked = grid;
+    });
   }
 
   toggleGrid(): void {

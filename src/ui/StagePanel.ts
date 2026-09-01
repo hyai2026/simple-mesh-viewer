@@ -77,7 +77,6 @@ const TEMPLATE = `
   <div class="light-row"><span>背景(上)</span><input id="stg-bgtop" type="color" /></div>
   <div class="light-row"><span>背景(下)</span><input id="stg-bgbottom" type="color" /></div>
   <div class="light-row"><span>地面色</span><input id="stg-gcolor" type="color" /></div>
-  <label class="chip"><input type="checkbox" id="stg-grid" checked /><span>网格地面 (G)</span></label>
   <div class="seg" id="stg-ground">
     <button id="g-shadow" class="seg-btn active">承接阴影</button>
     <button id="g-solid" class="seg-btn">实色</button>
@@ -566,9 +565,6 @@ export class StagePanel {
       this.bus.emit('stage-env', { bgBottom: bgBottom.value }),
     );
     gColor.addEventListener('input', () => this.bus.emit('stage-env', { groundColor: gColor.value }));
-    q<HTMLInputElement>('#stg-grid').addEventListener('change', (e) =>
-      this.bus.emit('stage-env', { grid: (e.target as HTMLInputElement).checked }),
-    );
 
     q<HTMLButtonElement>('#preset-studio').addEventListener('click', () =>
       this.bus.emit('stage-env', { preset: 'studioDark' }),
@@ -607,7 +603,6 @@ export class StagePanel {
     (q('#stg-bgtop') as HTMLInputElement).value = env.bgTop;
     (q('#stg-bgbottom') as HTMLInputElement).value = env.bgBottom;
     (q('#stg-gcolor') as HTMLInputElement).value = env.groundColor;
-    (q('#stg-grid') as HTMLInputElement).checked = env.grid;
     q('#stg-key-v').textContent = env.key.toFixed(1);
     q('#stg-fill-v').textContent = env.fill.toFixed(2);
     q('#stg-amb-v').textContent = env.ambient.toFixed(2);

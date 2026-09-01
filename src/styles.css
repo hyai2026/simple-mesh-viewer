@@ -490,13 +490,14 @@ input[type='color'] {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 5px 0;
   font-size: 12px;
   color: var(--text-dim);
 }
 
 .light-row > span:first-child {
-  width: 44px;
+  width: 58px;
+  flex: none;
 }
 
 .light-row input[type='range'] {
@@ -582,25 +583,28 @@ body:not(.mode-stage) .stage-only {
 }
 
 .btn.small {
-  padding: 2px 9px;
+  padding: 3px 10px;
   font-size: 11px;
 }
 
 .stage-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 6px;
+  row-gap: 7px;
+  margin-bottom: 8px;
 }
 
 .stage-actions .hint-text {
   font-size: 10px;
+  flex-basis: 100%;
 }
 
 #stg-tree {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .stage-group-row,
@@ -608,7 +612,7 @@ body:not(.mode-stage) .stage-only {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 5px;
+  padding: 4px 6px;
   border-radius: 4px;
   cursor: default;
 }
@@ -640,7 +644,7 @@ body:not(.mode-stage) .stage-only {
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .stage-group-row.selected,
@@ -679,10 +683,10 @@ body:not(.mode-stage) .stage-only {
 
 .xf-grid {
   display: grid;
-  grid-template-columns: 34px 1fr 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: 38px 1fr 1fr 1fr;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .xf-label {
@@ -698,7 +702,7 @@ body:not(.mode-stage) .stage-only {
   border-radius: 4px;
   color: var(--text);
   font-size: 11px;
-  padding: 2px 4px;
+  padding: 3px 5px;
   font-family: ui-monospace, Consolas, monospace;
 }
 
@@ -748,21 +752,21 @@ body:not(.mode-stage) .stage-only {
 .stage-colors {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 5px 3px 22px;
+  gap: 10px;
+  padding: 1px 6px 4px 24px;
 }
 
 .color-chip {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 10px;
   color: var(--text-dim);
 }
 
 .color-chip input[type='color'] {
-  width: 20px;
-  height: 15px;
+  width: 24px;
+  height: 16px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -787,6 +791,7 @@ body:not(.mode-stage) .stage-only {
 
 .xf-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 8px;
 }

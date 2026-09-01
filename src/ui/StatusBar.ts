@@ -15,6 +15,8 @@ export class StatusBar {
   private progress: HTMLElement;
   private fill: HTMLElement;
   private modelNames = new Map<string, string>();
+  private busyCount = 0;
+  private busyText = '';
 
   constructor(el: HTMLElement, bus: EventBus) {
     el.innerHTML = TEMPLATE;
@@ -55,7 +57,13 @@ export class StatusBar {
       this.left.textContent = `错误：${message}`;
     });
     bus.on('busy', ({ active, label }) => {
-      this.busyLabel.textContent = active ? (label ?? '处理中…') : '';
+      if (active) {
+        this.busyCount++;
+        this.busyText = label ?? '处理中…';
+      } else {
+        this.busyCount = Math.max(0, this.busyCount - 1);
+      }
+      this.busyLabel.textContent = this.busyCount > 0 ? this.busyText : '';
     });
   }
 

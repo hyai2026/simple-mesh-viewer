@@ -303,6 +303,10 @@ body {
   text-overflow: ellipsis;
 }
 
+#status-left.error {
+  color: var(--danger);
+}
+
 #status-right {
   display: flex;
   align-items: center;

@@ -17,6 +17,7 @@ export class StatusBar {
   private modelNames = new Map<string, string>();
   private busyCount = 0;
   private busyText = '';
+  private errorActive = false;
 
   constructor(el: HTMLElement, bus: EventBus) {
     el.innerHTML = TEMPLATE;
@@ -33,6 +34,7 @@ export class StatusBar {
     });
 
     bus.on('hover-changed', (hit) => {
+      if (this.errorActive) return;
       if (!hit) {
         if (!this.busyLabel.textContent && !this.progressPending()) {
           this.left.textContent = '就绪';
@@ -42,6 +44,7 @@ export class StatusBar {
       this.left.textContent = this.formatHover(hit);
     });
     bus.on('file-loading', ({ name }) => {
+      this.clearError();
       this.setProgress(0);
       this.left.textContent = `正在解析 ${name} …`;
     });
@@ -49,10 +52,13 @@ export class StatusBar {
       this.setProgress(fraction);
     });
     bus.on('model-added', ({ name, ms }) => {
+      this.clearError();
       this.hideProgress();
       this.left.textContent = `${name} 加载完成 · ${(ms / 1000).toFixed(2)} s`;
     });
     bus.on('file-error', ({ message }) => {
+      this.errorActive = true;
+      this.left.classList.add('error');
       this.hideProgress();
       this.left.textContent = `错误：${message}`;
     });
@@ -69,6 +75,11 @@ export class StatusBar {
 
   private progressPending(): boolean {
     return this.progress.style.display !== 'none';
+  }
+
+  private clearError(): void {
+    this.errorActive = false;
+    this.left.classList.remove('error');
   }
 
   private setProgress(fraction: number): void {

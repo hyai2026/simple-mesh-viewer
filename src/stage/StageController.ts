@@ -155,6 +155,8 @@ export class StageController {
       -((e.clientY - rect.top) / rect.height) * 2 + 1,
     );
     const ray = new THREE.Raycaster();
+    ray.params.Points.threshold = 0;
+    ray.params.Line.threshold = 0;
     ray.setFromCamera(ndc, this.camera);
     const hits = ray.intersectObject(this.stage.stageRoot, true);
     const hit = hits.find((h) => this.chainVisible(h.object));

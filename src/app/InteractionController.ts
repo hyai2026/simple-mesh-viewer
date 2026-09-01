@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import type { SelectionState } from '../core/SelectionStore';
-import { SelectionStore } from '../core/SelectionStore';
 import { nextCameraMode, type CameraRig } from '../render/CameraRig';
 import type { HighlightLayer } from '../render/HighlightLayer';
 import type { ModelRegistry } from '../render/ModelRegistry';
@@ -25,7 +23,6 @@ export interface InteractionDeps {
 }
 
 export class InteractionController {
-  private selection = new SelectionStore();
   private hoverHit: PickHit | null = null;
   private selHit: PickHit | null = null;
   private pointerDirty = false;
@@ -40,11 +37,6 @@ export class InteractionController {
 
     d.bus.on('selection-changed', (hit) => {
       this.selHit = hit;
-      this.selection.set(
-        hit
-          ? ({ modelId: hit.modelId, kind: hit.kind, index: hit.index } as SelectionState)
-          : { kind: 'none' },
-      );
       this.refreshHighlights();
     });
     d.bus.on('hover-changed', (hit) => {

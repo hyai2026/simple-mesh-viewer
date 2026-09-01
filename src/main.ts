@@ -163,18 +163,18 @@ async function loadModel(file: File): Promise<void> {
     const mesh = await loadModelFile(file, (f) => bus.emit('progress', { fraction: f }));
     const view = models.add(mesh);
     picking.register(view);
-    stage.onModelAdded(view);
-    if (mode === 'stage') {
-      rig.fitAll(stage.box());
-    } else {
-      rig.fitAll(models.unionBox(new THREE.Box3()));
-    }
     bus.emit('model-added', {
       id: view.id,
       name: mesh.fileName,
       stats: meshStats(mesh),
       ms: performance.now() - t0,
     });
+    stage.onModelAdded(view);
+    if (mode === 'stage') {
+      rig.fitAll(stage.box());
+    } else {
+      rig.fitAll(models.unionBox(new THREE.Box3()));
+    }
     bus.emit('model-layer-changed', { id: view.id, vis: view.getVisibility() });
     if (mode === 'analysis' && surfaceDiagnostic !== 'none' && mesh.triangleCount > 0) {
       bus.emit('set-surface-diagnostic', { mode: surfaceDiagnostic });

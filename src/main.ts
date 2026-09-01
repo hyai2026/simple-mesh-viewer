@@ -31,6 +31,16 @@ const toolbarEl = document.getElementById('toolbar') as HTMLElement;
 const infoEl = document.getElementById('info') as HTMLElement;
 const statusEl = document.getElementById('statusbar') as HTMLElement;
 
+const sidebarToggle = document.getElementById('sidebar-toggle') as HTMLButtonElement;
+for (const type of ['pointerdown', 'pointerup'] as const) {
+  sidebarToggle.addEventListener(type, (e) => e.stopPropagation());
+}
+sidebarToggle.addEventListener('click', () => {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  sidebarToggle.textContent = collapsed ? '⇤' : '⇥';
+  sidebarToggle.title = collapsed ? '展开侧栏' : '收起侧栏';
+});
+
 const bus = new EventBus();
 const sceneMgr = new SceneManager(viewport);
 const rig = new CameraRig(sceneMgr.camera, viewport);

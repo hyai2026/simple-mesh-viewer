@@ -147,6 +147,38 @@ body {
   min-height: 0;
 }
 
+body.sidebar-collapsed #main {
+  grid-template-columns: 1fr 0;
+}
+
+body.sidebar-collapsed #info {
+  display: none;
+}
+
+#sidebar-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 18px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  background: var(--panel);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+#sidebar-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 #viewport {
   position: relative;
   overflow: hidden;

@@ -367,6 +367,12 @@ body.sidebar-collapsed #info {
   color: var(--accent);
 }
 
+#queue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .model-item {
   border: 1px solid var(--border);
   border-radius: 8px;

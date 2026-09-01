@@ -4,6 +4,9 @@ import type { PickHit } from '../render/PickingEngine';
 const TEMPLATE = `
 <span id="status-left">就绪 — 打开或拖入模型文件</span>
 <span id="status-right">
+  <span id="queue" class="hidden">队列 <span id="queue-n">0</span>
+    <button id="queue-cancel" class="icon-btn" title="取消排队中的文件">✕</button>
+  </span>
   <span id="busy-label"></span>
   <div id="progress"><div id="progress-fill"></div></div>
 </span>
@@ -25,6 +28,15 @@ export class StatusBar {
     this.busyLabel = el.querySelector('#busy-label') as HTMLElement;
     this.progress = el.querySelector('#progress') as HTMLElement;
     this.fill = el.querySelector('#progress-fill') as HTMLElement;
+    const queue = el.querySelector('#queue') as HTMLElement;
+    const queueN = el.querySelector('#queue-n') as HTMLElement;
+    (el.querySelector('#queue-cancel') as HTMLButtonElement).addEventListener('click', () =>
+      bus.emit('cancel-load-queue', {}),
+    );
+    bus.on('load-queue-changed', ({ pending }) => {
+      queue.classList.toggle('hidden', pending === 0);
+      queueN.textContent = String(pending);
+    });
 
     bus.on('model-added', ({ id, name }) => {
       this.modelNames.set(id, name);

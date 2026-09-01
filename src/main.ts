@@ -153,14 +153,21 @@ async function drainQueue(): Promise<void> {
   if (isLoading) return;
   const next = pendingFiles.shift();
   if (!next) return;
+  bus.emit('load-queue-changed', { pending: pendingFiles.length });
   await loadModel(next);
   if (pendingFiles.length > 0) void drainQueue();
 }
 
 function enqueueLoad(file: File): void {
   pendingFiles.push(file);
+  bus.emit('load-queue-changed', { pending: pendingFiles.length });
   void drainQueue();
 }
+
+bus.on('cancel-load-queue', () => {
+  pendingFiles.length = 0;
+  bus.emit('load-queue-changed', { pending: 0 });
+});
 
 async function loadModel(file: File): Promise<void> {
   if (isLoading) return;

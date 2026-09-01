@@ -34,6 +34,8 @@ export const DEFAULT_LIGHTING: LightingParams = {
 
 export interface EventMap {
   'open-file': { file: File };
+  'load-queue-changed': { pending: number };
+  'cancel-load-queue': Record<string, never>;
   'progress': { fraction: number };
   'file-loading': { name: string };
   'file-error': { message: string };

@@ -31,6 +31,11 @@ export class ExportDialog {
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (this.pop.classList.contains('hidden')) {
+        const r = btn.getBoundingClientRect();
+        this.pop.style.top = `${r.bottom + 6}px`;
+        this.pop.style.right = `${window.innerWidth - r.right}px`;
+      }
       this.pop.classList.toggle('hidden');
     });
     this.pop.addEventListener('click', (e) => e.stopPropagation());

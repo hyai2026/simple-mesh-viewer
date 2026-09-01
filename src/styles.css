@@ -39,6 +39,8 @@ body {
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   user-select: none;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .brand {
@@ -553,8 +555,8 @@ input[type='color'] {
 }
 
 .popover {
-  position: absolute;
-  top: calc(100% + 6px);
+  position: fixed;
+  top: 0;
   right: 0;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -570,6 +572,7 @@ input[type='color'] {
 
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {

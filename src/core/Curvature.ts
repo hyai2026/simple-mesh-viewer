@@ -3,6 +3,8 @@ import type { MeshData } from './MeshData';
 export type CurvatureType = 'mean' | 'gauss' | 'min' | 'max';
 export type Colormap = 'jet' | 'bwr';
 
+export type CurvatureInput = Pick<MeshData, 'positionCount' | 'positions' | 'renderIndex'>;
+
 export interface CurvatureData {
   mean: Float32Array;
   gauss: Float32Array;
@@ -19,7 +21,7 @@ const EPS_AREA = 1e-14;
 const EPS_LEN = 1e-12;
 const DERIVE_STRIDE_LIMIT = 93_000_000;
 
-export function computeCurvature(data: MeshData): CurvatureData {
+export function computeCurvature(data: CurvatureInput): CurvatureData {
   const n = data.positionCount;
   const mean = new Float32Array(n);
   const gauss = new Float32Array(n);

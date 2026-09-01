@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshBVH } from 'three-mesh-bvh';
+import { MeshBVH, type SerializedBVH } from 'three-mesh-bvh';
 import type { Colormap } from '../core/Curvature';
 import type { MeshData, MeshStats } from '../core/MeshData';
 import { meshStats } from '../core/MeshData';
@@ -406,6 +406,19 @@ export class MeshView {
     this.surfaceGeo.boundsTree = new MeshBVH(this.surfaceGeo, { indirect: true });
     this.bvhBuilt = true;
     return true;
+  }
+
+  hasBVH(): boolean {
+    return this.bvhBuilt;
+  }
+
+  attachBVH(serialized: SerializedBVH): void {
+    if (this.bvhBuilt || !this.surfaceGeo) return;
+    this.disposeBVH();
+    this.surfaceGeo.boundsTree = MeshBVH.deserialize(serialized, this.surfaceGeo, {
+      setIndex: false,
+    });
+    this.bvhBuilt = true;
   }
 
   isPickable(): boolean {

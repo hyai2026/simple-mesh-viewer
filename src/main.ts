@@ -318,21 +318,34 @@ function scalarsFor(view: MeshView): NormalizedScalars | null {
   return normalizeForColormap(values, 0.02, 0.98, cd.valid);
 }
 
-function applyDiagnosticToView(view: MeshView): void {
-  if (!view.meshData || !view.hasLayer('surface')) return;
+function applyDiagnosticToView(view: MeshView): { min: number; max: number } | null {
+  if (!view.meshData || !view.hasLayer('surface')) return null;
+  let range: { min: number; max: number } | null = null;
   if (surfaceDiagnostic === 'curvature') {
     view.setColormap(curvOpts.colormap);
     const sc = scalarsFor(view);
     if (sc) {
       view.setCurvatureScalars(sc.data);
-      bus.emit('curvature-range', { min: sc.min, max: sc.max });
+      range = { min: sc.min, max: sc.max };
     }
   }
   view.setSurfaceDiagnostic(surfaceDiagnostic);
+  return range;
 }
 
 function applyDiagnosticToAll(): void {
-  for (const view of models.all()) applyDiagnosticToView(view);
+  let lo = Infinity;
+  let hi = -Infinity;
+  let found = false;
+  for (const view of models.all()) {
+    const r = applyDiagnosticToView(view);
+    if (r) {
+      found = true;
+      if (r.min < lo) lo = r.min;
+      if (r.max > hi) hi = r.max;
+    }
+  }
+  if (found) bus.emit('curvature-range', { min: lo, max: hi });
   bus.emit('surface-diagnostic-changed', { mode: surfaceDiagnostic });
 }
 
@@ -359,14 +372,7 @@ bus.on('set-curvature-options', (opts) => {
   curvOpts = opts;
   bus.emit('curvature-options-changed', opts);
   if (surfaceDiagnostic !== 'curvature' || curvatureCache.size === 0) return;
-  for (const view of models.all()) {
-    if (!view.meshData || !view.hasLayer('surface')) continue;
-    view.setColormap(curvOpts.colormap);
-    const sc = scalarsFor(view);
-    if (!sc) continue;
-    view.setCurvatureScalars(sc.data);
-    bus.emit('curvature-range', { min: sc.min, max: sc.max });
-  }
+  applyDiagnosticToAll();
 });
 
 bus.on('set-shading', ({ flat }) => {

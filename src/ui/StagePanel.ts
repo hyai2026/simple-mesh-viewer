@@ -354,11 +354,12 @@ export class StagePanel {
     const wrap = document.createElement('div');
     wrap.className = 'stage-group-row';
     wrap.dataset.id = g.id;
+    const allOff = g.members.every((m) => this.shownState.get(m) === false);
     wrap.innerHTML = `
       <button class="caret" title="展开/收起">${expanded ? '▾' : '▸'}</button>
       <span class="model-name" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>
       <span class="stage-count">${g.members.length}</span>
-      <button class="icon-btn eye on" title="显示/隐藏整组">${EYE_SVG_ON}${EYE_SVG_OFF}</button>
+      <button class="icon-btn eye ${allOff ? 'off' : 'on'}" title="显示/隐藏整组">${EYE_SVG_ON}${EYE_SVG_OFF}</button>
       <button class="icon-btn ungroup" title="解散该组">⤦</button>
     `;
     const caret = wrap.querySelector('button.caret') as HTMLButtonElement;

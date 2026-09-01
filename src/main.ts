@@ -443,6 +443,10 @@ viewport.addEventListener('pointerup', (e) => {
 viewport.addEventListener('pointerleave', () => {
   lastClient = null;
   pointerDirty = true;
+  if (hoverHit) {
+    hoverHit = null;
+    bus.emit('hover-changed', null);
+  }
 });
 
 viewport.addEventListener('dragenter', (e) => {

@@ -126,6 +126,7 @@ export class StagePanel {
   private ungroupBtn: HTMLButtonElement;
   private xfInputs: Array<HTMLInputElement> = [];
   private xfReset: HTMLButtonElement;
+  private xfApplied = [0, 0, 0, 0, 0, 0, 1, 1, 1];
 
   constructor(el: HTMLElement, bus: EventBus) {
     this.bus = bus;
@@ -191,7 +192,7 @@ export class StagePanel {
     });
 
     for (const inp of this.xfInputs) {
-      inp.addEventListener('input', () => this.emitXf());
+      inp.addEventListener('change', () => this.commitXf());
     }
 
     bus.on('model-added', ({ id, name, stats }) => {
@@ -278,10 +279,17 @@ export class StagePanel {
     this.wireEnv(q);
   }
 
-  private emitXf(): void {
+  private commitXf(): void {
     if (!this.selection.unitId) return;
-    const num = (el: HTMLInputElement): number => Number(el.value) || 0;
-    const [px, py, pz, rx, ry, rz, sx, sy, sz] = this.xfInputs.map(num);
+    const vals = this.xfInputs.map((el) => Number(el.value));
+    if (vals.some((v) => !Number.isFinite(v))) {
+      for (const [i, v] of this.xfApplied.entries()) {
+        this.xfInputs[i].value = String(round3(v));
+      }
+      return;
+    }
+    this.xfApplied = vals;
+    const [px, py, pz, rx, ry, rz, sx, sy, sz] = vals;
     this.bus.emit('stage-set-transform', {
       unitId: this.selection.unitId,
       modelId: this.selection.modelId,
@@ -296,9 +304,10 @@ export class StagePanel {
       t.unitId !== this.selection.unitId ||
       (t.modelId ?? null) !== (this.selection.modelId ?? null)
     ) return;
+    const vals = [...t.position, ...t.rotationDeg, ...t.scale];
+    this.xfApplied = vals;
     const active = document.activeElement;
     if (active && this.xfInputs.includes(active as HTMLInputElement)) return;
-    const vals = [...t.position, ...t.rotationDeg, ...t.scale];
     for (const [i, v] of vals.entries()) {
       this.xfInputs[i].value = String(round3(v));
     }

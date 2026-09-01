@@ -48,7 +48,10 @@ export class StageController {
     this.tc.enabled = false;
     this.stage.scene.add(this.tc.getHelper());
     this.tc.addEventListener('mouseDown', () => this.setRigGated(true));
-    this.tc.addEventListener('mouseUp', () => this.setRigGated(false));
+    this.tc.addEventListener('mouseUp', () => {
+      this.setRigGated(false);
+      if (this.staged) this.stage.fitShadowCamera(this.box());
+    });
     this.tc.addEventListener('objectChange', () => this.emitTransform());
     window.addEventListener('pointerup', () => {
       if (!this.tc.dragging) this.setRigGated(false);
@@ -228,6 +231,7 @@ export class StageController {
       );
       node.scale.set(t.scale[0], t.scale[1], t.scale[2]);
       this.emitTransform();
+      if (this.staged) this.stage.fitShadowCamera(this.box());
     });
 
     this.bus.on('stage-gizmo', ({ mode, space }) => {

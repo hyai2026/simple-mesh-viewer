@@ -12,6 +12,11 @@ export class SceneManager {
   private grid: THREE.GridHelper;
   private ro: ResizeObserver;
   private container: HTMLElement;
+  private active: THREE.Scene | null = null;
+
+  get activeScene(): THREE.Scene {
+    return this.active ?? this.scene;
+  }
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -68,19 +73,46 @@ export class SceneManager {
     this.headLight.intensity = on ? 2.5 : 0;
   }
 
+  setActiveScene(scene: THREE.Scene | null): void {
+    this.active = scene;
+  }
+
+  applyProfile(profile: { toneMapping: THREE.ToneMapping; exposure: number; shadowMap: boolean }): void {
+    const r = this.renderer;
+    const shadowChanged = r.shadowMap.enabled !== profile.shadowMap;
+    const toneChanged = r.toneMapping !== profile.toneMapping;
+    r.toneMapping = profile.toneMapping;
+    r.toneMappingExposure = profile.exposure;
+    r.shadowMap.enabled = profile.shadowMap;
+    if (profile.shadowMap) r.shadowMap.type = THREE.PCFShadowMap;
+    if (shadowChanged || toneChanged) this.refreshMaterials();
+  }
+
+  private refreshMaterials(): void {
+    for (const scene of [this.scene, this.active]) {
+      if (!scene) continue;
+      scene.traverse((o) => {
+        const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        if (!mat) return;
+        for (const m of Array.isArray(mat) ? mat : [mat]) m.needsUpdate = true;
+      });
+    }
+  }
+
   async renderToBlob(scale: number, transparentBg: boolean): Promise<Blob> {
     const w = Math.max(1, this.container.clientWidth);
     const h = Math.max(1, this.container.clientHeight);
+    const sc = this.activeScene;
     const oldPixelRatio = this.renderer.getPixelRatio();
-    const oldBackground = this.scene.background;
+    const oldBackground = sc.background;
     try {
       this.renderer.setPixelRatio(1);
       this.renderer.setSize(Math.round(w * scale), Math.round(h * scale), false);
       if (transparentBg) {
-        this.scene.background = null;
+        sc.background = null;
         this.renderer.setClearColor(0x000000, 0);
       }
-      this.renderer.render(this.scene, this.camera);
+      this.renderer.render(sc, this.camera);
       return await new Promise<Blob>((resolve, reject) => {
         this.renderer.domElement.toBlob(
           (blob) => (blob ? resolve(blob) : reject(new Error('图像导出失败'))),
@@ -88,10 +120,10 @@ export class SceneManager {
         );
       });
     } finally {
-      this.scene.background = oldBackground;
+      sc.background = oldBackground;
       this.renderer.setPixelRatio(oldPixelRatio);
       this.applySize();
-      this.renderer.render(this.scene, this.camera);
+      this.renderer.render(this.activeScene, this.camera);
     }
   }
 
@@ -105,7 +137,7 @@ export class SceneManager {
       requestAnimationFrame(loop);
       const dt = clock.getDelta();
       onFrame(dt);
-      this.renderer.render(this.scene, this.camera);
+      this.renderer.render(this.activeScene, this.camera);
       onAfterRender?.();
     };
     requestAnimationFrame(loop);

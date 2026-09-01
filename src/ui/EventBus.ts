@@ -3,6 +3,20 @@ import type { Colormap, CurvatureType } from '../core/Curvature';
 import type { CameraMode } from '../render/CameraRig';
 import type { LayerKey, LayerVisibility, SurfaceDiagnostic } from '../render/MeshView';
 import type { PickHit } from '../render/PickingEngine';
+import type { StageTreeSnapshot } from '../stage/StageModel';
+import type { StageEnvParams, StagePreset } from '../stage/StageScene';
+
+export type AppMode = 'analysis' | 'stage';
+export type StageGizmoMode = 'translate' | 'rotate' | 'scale';
+export type StageGizmoSpace = 'world' | 'local';
+
+export interface StageTransformPayload {
+  unitId: string | null;
+  modelId: string | null;
+  position: [number, number, number];
+  rotationDeg: [number, number, number];
+  scale: [number, number, number];
+}
 
 export interface LightingParams {
   hemi: number;
@@ -31,6 +45,7 @@ export interface EventMap {
   'set-model-opacity': { id: string; opacity: number };
   'model-opacity-changed': { id: string; opacity: number };
   'set-model-color': { id: string; layer: LayerKey; color: number };
+  'model-color-changed': { id: string; layer: LayerKey; color: number };
   'set-model-pickable': { id: string; pickable: boolean };
   'model-pickable-changed': { id: string; pickable: boolean };
   'set-model-shown': { id: string; shown: boolean };
@@ -58,6 +73,22 @@ export interface EventMap {
   'curvature-range': { min: number; max: number };
   'export-image': { scale: number; transparent: boolean };
   'busy': { active: boolean; label?: string };
+  'set-mode': { mode: AppMode };
+  'mode-changed': { mode: AppMode };
+  'stage-select': { unitId: string | null; modelId?: string | null };
+  'stage-selection-changed': { unitId: string | null; modelId: string | null };
+  'stage-transform-changed': StageTransformPayload;
+  'stage-set-transform': StageTransformPayload;
+  'stage-gizmo': { mode: StageGizmoMode; space?: StageGizmoSpace };
+  'stage-gizmo-changed': { mode: StageGizmoMode; space: StageGizmoSpace };
+  'stage-group': { modelIds: string[] };
+  'stage-ungroup': { groupId: string };
+  'stage-rename': { groupId: string; name: string };
+  'stage-structure-changed': { tree: StageTreeSnapshot };
+  'stage-arrange': Record<string, never>;
+  'stage-arranged': { count: number };
+  'stage-env': Partial<StageEnvParams> & { preset?: StagePreset };
+  'stage-env-changed': StageEnvParams;
 }
 
 type Handler<T> = (payload: T) => void;

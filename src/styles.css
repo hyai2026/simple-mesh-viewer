@@ -571,3 +571,216 @@ input[type='color'] {
   background: var(--border);
   border-radius: 4px;
 }
+
+/* ===== 舞台模式 ===== */
+body.mode-stage .analysis-only {
+  display: none !important;
+}
+
+body:not(.mode-stage) .stage-only {
+  display: none !important;
+}
+
+.btn.small {
+  padding: 2px 9px;
+  font-size: 11px;
+}
+
+.stage-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.stage-actions .hint-text {
+  font-size: 10px;
+}
+
+#stg-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stage-group-row,
+.stage-model-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: default;
+}
+
+.stage-group-row {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+
+.stage-group-row .model-name,
+.stage-model-row .model-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.stage-group-row .model-name:hover,
+.stage-model-row .model-name:hover {
+  color: var(--accent);
+}
+
+.stage-children {
+  margin-left: 13px;
+  padding-left: 5px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stage-group-row.selected,
+.stage-model-row.selected {
+  outline: 1px solid var(--accent);
+  background: rgba(77, 178, 255, 0.08);
+}
+
+.stage-count {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.stage-check {
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.stage-model-row .mini-toggle {
+  flex: none;
+}
+
+.stage-rename {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.xf-grid {
+  display: grid;
+  grid-template-columns: 34px 1fr 1fr 1fr;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.xf-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.xf-grid input {
+  width: 100%;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 2px 4px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.xf-grid input:disabled {
+  opacity: 0.35;
+}
+
+.xf-grid input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+#xf-reset {
+  width: 100%;
+}
+
+#stg-preset,
+#stg-ground,
+#stg-tone {
+  margin-bottom: 8px;
+}
+
+#stg-tone {
+  margin-bottom: 0;
+}
+
+/* 工具栏：子项不收缩不换行，提示文字截断 */
+#toolbar > * {
+  flex: none;
+}
+
+#toolbar .hint-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn,
+.seg-btn,
+.chip {
+  white-space: nowrap;
+}
+
+/* 舞台模型行颜色设置 */
+.stage-colors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 5px 3px 22px;
+}
+
+.color-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.color-chip input[type='color'] {
+  width: 20px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+.stage-model-wrap {
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+}
+
+.stage-model-wrap.selected > .stage-model-row {
+  outline: 1px solid var(--accent);
+  background: rgba(77, 178, 255, 0.08);
+}
+
+.stage-model-wrap.model-hidden > .stage-model-row {
+  opacity: 0.45;
+}

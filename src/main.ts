@@ -17,10 +17,11 @@ import { SceneManager } from './render/SceneManager';
 import { EnvironmentPanel } from './ui/EnvironmentPanel';
 import { DiagnosticsPanel } from './ui/DiagnosticsPanel';
 import { ExportDialog } from './ui/ExportDialog';
-import { EventBus, type LightingParams, DEFAULT_LIGHTING } from './ui/EventBus';
-import { ModelList } from './ui/ModelList';
+import { EventBus, type LightingParams, DEFAULT_LIGHTING, type AppMode } from './ui/EventBus';
 import { SelectionPanel } from './ui/SelectionPanel';
 import { StatusBar } from './ui/StatusBar';
+import { StagePanel } from './ui/StagePanel';
+import { StageController } from './stage/StageController';
 import { Toolbar } from './ui/Toolbar';
 
 const viewport = document.getElementById('viewport') as HTMLElement;
@@ -42,17 +43,51 @@ const selection = new SelectionStore();
 
 new Toolbar(toolbarEl, bus);
 
-const listSection = document.createElement('div');
 const envSection = document.createElement('div');
 const diagSection = document.createElement('div');
 const selSection = document.createElement('div');
-infoEl.append(listSection, envSection, diagSection, selSection);
-new ModelList(listSection, bus);
+const stageSection = document.createElement('div');
+envSection.className = 'analysis-only';
+diagSection.className = 'analysis-only';
+selSection.className = 'analysis-only';
+infoEl.append(stageSection, envSection, diagSection, selSection);
 new EnvironmentPanel(envSection, bus);
 new DiagnosticsPanel(diagSection, bus);
 new SelectionPanel(selSection, bus, models);
 new ExportDialog(toolbarEl, bus);
 new StatusBar(statusEl, bus);
+
+const stage = new StageController(bus, sceneMgr.camera, viewport, models, sceneMgr.root, sceneMgr, rig);
+new StagePanel(stageSection, bus);
+
+let mode: AppMode = 'analysis';
+const modePoses = new Map<AppMode, { position: THREE.Vector3; target: THREE.Vector3 }>();
+const ANALYSIS_PROFILE = { toneMapping: THREE.NoToneMapping, exposure: 1, shadowMap: false } as const;
+
+bus.on('set-mode', ({ mode: next }) => {
+  if (next === mode) return;
+  modePoses.set(mode, rig.getPose());
+  mode = next;
+  document.body.classList.toggle('mode-stage', next === 'stage');
+  if (next === 'stage') {
+    if (surfaceDiagnostic !== 'none') {
+      surfaceDiagnostic = 'none';
+      applyDiagnosticToAll();
+    }
+    stage.enter();
+    sceneMgr.setActiveScene(stage.scene);
+    sceneMgr.applyProfile(stage.profileParams());
+  } else {
+    stage.leave();
+    sceneMgr.setActiveScene(null);
+    sceneMgr.applyProfile({ ...ANALYSIS_PROFILE });
+  }
+  const saved = modePoses.get(next);
+  if (saved) rig.setPose(saved);
+  else if (next === 'stage') rig.fitAll(stage.box(), rig.homeDir);
+  else resetView();
+  bus.emit('mode-changed', { mode: next });
+});
 
 let isLoading = false;
 let gridVisible = true;
@@ -128,7 +163,12 @@ async function loadModel(file: File): Promise<void> {
     const mesh = await loadModelFile(file, (f) => bus.emit('progress', { fraction: f }));
     const view = models.add(mesh);
     picking.register(view);
-    rig.fitAll(models.unionBox(new THREE.Box3()));
+    stage.onModelAdded(view);
+    if (mode === 'stage') {
+      rig.fitAll(stage.box());
+    } else {
+      rig.fitAll(models.unionBox(new THREE.Box3()));
+    }
     bus.emit('model-added', {
       id: view.id,
       name: mesh.fileName,
@@ -136,10 +176,10 @@ async function loadModel(file: File): Promise<void> {
       ms: performance.now() - t0,
     });
     bus.emit('model-layer-changed', { id: view.id, vis: view.getVisibility() });
-    if (surfaceDiagnostic !== 'none' && mesh.triangleCount > 0) {
+    if (mode === 'analysis' && surfaceDiagnostic !== 'none' && mesh.triangleCount > 0) {
       bus.emit('set-surface-diagnostic', { mode: surfaceDiagnostic });
     }
-    if (mesh.triangleCount > 0) {
+    if (mode === 'analysis' && mesh.triangleCount > 0) {
       bus.emit('busy', { active: true, label: '构建空间索引…' });
       setTimeout(() => {
         view.ensureBVH();
@@ -156,6 +196,7 @@ async function loadModel(file: File): Promise<void> {
 bus.on('open-file', ({ file }) => enqueueLoad(file));
 
 bus.on('remove-model', ({ id }) => {
+  stage.onModelRemoved(id);
   if (!models.remove(id)) return;
   picking.unregister(id);
   curvatureCache.delete(id);
@@ -170,7 +211,11 @@ bus.on('remove-model', ({ id }) => {
   }
   refreshHighlights();
   bus.emit('model-removed', { id });
-  resetView();
+  if (mode === 'stage') {
+    if (stage.isStaged()) rig.fitAll(stage.box());
+  } else {
+    resetView();
+  }
 });
 
 bus.on('set-model-layers', ({ id, partial }) => {
@@ -190,6 +235,7 @@ bus.on('set-model-color', ({ id, layer, color }) => {
   const view = models.get(id);
   if (!view) return;
   view.setColor(layer, color);
+  bus.emit('model-color-changed', { id, layer, color });
 });
 
 bus.on('set-model-pickable', ({ id, pickable }) => {
@@ -313,6 +359,7 @@ function timestamp(): string {
 bus.on('export-image', async ({ scale, transparent }) => {
   bus.emit('busy', { active: true, label: '正在生成图像…' });
   await new Promise((r) => setTimeout(r, 10));
+  if (mode === 'stage' && transparent) stage.setGroundVisible(false);
   try {
     const blob = await sceneMgr.renderToBlob(scale, transparent);
     const url = URL.createObjectURL(blob);
@@ -325,18 +372,24 @@ bus.on('export-image', async ({ scale, transparent }) => {
   } catch (err) {
     bus.emit('busy', { active: false });
     bus.emit('file-error', { message: err instanceof Error ? err.message : String(err) });
+  } finally {
+    if (mode === 'stage') stage.setGroundVisible(true);
   }
 });
 
-function setCameraMode(mode: CameraMode): void {
-  rig.setMode(mode);
-  bus.emit('camera-mode-changed', { mode });
+function setCameraMode(camMode: CameraMode): void {
+  rig.setMode(camMode);
+  bus.emit('camera-mode-changed', { mode: camMode });
 }
 
 bus.on('set-camera-mode', ({ mode }) => setCameraMode(mode));
 
 function resetView(): void {
-  rig.fitAll(models.unionBox(new THREE.Box3()), rig.homeDir);
+  if (mode === 'stage') {
+    rig.fitAll(stage.box(), rig.homeDir);
+  } else {
+    rig.fitAll(models.unionBox(new THREE.Box3()), rig.homeDir);
+  }
 }
 
 bus.on('view-reset', resetView);
@@ -379,6 +432,10 @@ viewport.addEventListener('pointerup', (e) => {
     Math.abs(e.clientX - downInfo.x) + Math.abs(e.clientY - downInfo.y) <= 6;
   downInfo = null;
   if (!wasClick) return;
+  if (mode === 'stage') {
+    stage.handleClick(e);
+    return;
+  }
   const hit = picking.pick(e.clientX, e.clientY, viewportRect(), 10);
   bus.emit('selection-changed', hit);
 });
@@ -440,21 +497,37 @@ function frameSelection(): void {
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   const key = e.key.toLowerCase();
-  if (key === 'f') frameSelection();
-  else if (e.key === 'Home') resetView();
-  else if (key === 'g') bus.emit('set-grid', { visible: !gridVisible });
-  else if (key === 'c') {
+  if (key === 'f') {
+    if (mode === 'analysis') frameSelection();
+  } else if (e.key === 'Home') resetView();
+  else if (key === 'g') {
+    if (mode === 'stage') stage.toggleGrid();
+    else bus.emit('set-grid', { visible: !gridVisible });
+  } else if (key === 'c') {
     bus.emit('set-camera-mode', { mode: nextCameraMode(rig.mode) });
-  }
-  else if (e.key === 'Escape') bus.emit('selection-changed', null);
+  } else if (mode === 'stage') {
+    if (key === 'w') bus.emit('stage-gizmo', { mode: 'translate' });
+    else if (key === 'e') bus.emit('stage-gizmo', { mode: 'rotate' });
+    else if (key === 'r') bus.emit('stage-gizmo', { mode: 'scale' });
+    else if (e.key === 'Escape') stage.select(null, null);
+  } else if (e.key === 'Escape') bus.emit('selection-changed', null);
 });
 
 sceneMgr.start(
   (dt) => {
     if (!navGizmo.isAnimating) rig.update();
     if (navGizmo.update(dt)) rig.adoptExternalPose(navGizmo.focusPoint);
-    if (pointerDirty && !rig.isActive() && !navGizmo.isAnimating && lastClient && !isLoading) {
+    if (
+      mode === 'analysis' &&
+      pointerDirty &&
+      !rig.isActive() &&
+      !navGizmo.isAnimating &&
+      lastClient &&
+      !isLoading
+    ) {
       pointerDirty = false;
       const hit = picking.pick(lastClient.x, lastClient.y, viewportRect(), 6);
       if (!hitsEqual(hit, hoverHit)) {

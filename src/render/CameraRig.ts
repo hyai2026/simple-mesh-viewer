@@ -18,6 +18,7 @@ export class CameraRig {
   readonly arc: ArcballControls;
   private _mode: CameraMode = 'arcball';
   private active = false;
+  private enabled = true;
   private minDist = 1e-4;
   private maxDist = 5000;
   private sceneRadius = 1;
@@ -48,6 +49,7 @@ export class CameraRig {
 
     this.arc = new ArcballControls(camera, dom);
     this.arc.rotateSpeed = 1.2;
+    this.arc.enableAnimations = false;
 
     for (const c of [this.orbit, this.ball, this.arc]) {
       c.addEventListener('start', () => {
@@ -68,14 +70,54 @@ export class CameraRig {
 
   setMode(mode: CameraMode): void {
     if (mode === this._mode) return;
+    this.cancelMomentum();
     this.syncTargets();
     this._mode = mode;
     this.applyMode();
     if (mode === 'arcball') this.syncArcState();
   }
 
+  cancelMomentum(): void {
+    const orbitInt = this.orbit as unknown as {
+      _sphericalDelta?: { set: (x: number, y: number, z: number) => void };
+      _panOffset?: { set: (x: number, y: number, z: number) => void };
+      _scale?: number;
+    };
+    orbitInt._sphericalDelta?.set(0, 0, 0);
+    orbitInt._panOffset?.set(0, 0, 0);
+    if (orbitInt._scale != null) orbitInt._scale = 1;
+    const ballInt = this.ball as unknown as {
+      _panStart?: { copy: (v: unknown) => void };
+      _panEnd?: { copy: (v: unknown) => void };
+      _zoomStart?: { copy: (v: unknown) => void };
+      _zoomEnd?: { copy: (v: unknown) => void };
+    };
+    if (ballInt._panStart && ballInt._panEnd) ballInt._panStart.copy(ballInt._panEnd);
+    if (ballInt._zoomStart && ballInt._zoomEnd) ballInt._zoomStart.copy(ballInt._zoomEnd);
+  }
+
   isActive(): boolean {
     return this.active;
+  }
+
+  setEnabled(on: boolean): void {
+    this.enabled = on;
+    this.applyMode();
+  }
+
+  getPose(): { position: THREE.Vector3; target: THREE.Vector3 } {
+    this.syncTargets();
+    return { position: this.camera.position.clone(), target: this.activeTarget().clone() };
+  }
+
+  setPose(pose: { position: THREE.Vector3; target: THREE.Vector3 }): void {
+    this.cancelMomentum();
+    this.camera.position.copy(pose.position);
+    this.adoptExternalPose(pose.target);
+    this.camera.updateProjectionMatrix();
+    this.orbit.update();
+    this.ball.update();
+    this.syncArcState();
   }
 
   activeTarget(): THREE.Vector3 {
@@ -94,6 +136,7 @@ export class CameraRig {
 
   frameBox(box: THREE.Box3, padding = 1.25, dirOverride?: THREE.Vector3): void {
     if (box.isEmpty()) return;
+    this.cancelMomentum();
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     const r = Math.max(sphere.radius, this.sceneRadius * 0.005, 1e-9);
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
@@ -167,8 +210,8 @@ export class CameraRig {
   }
 
   private applyMode(): void {
-    this.orbit.enabled = this.mode === 'orbit';
-    this.ball.enabled = this.mode === 'trackball';
-    this.arc.enabled = this.mode === 'arcball';
+    this.orbit.enabled = this.enabled && this._mode === 'orbit';
+    this.ball.enabled = this.enabled && this._mode === 'trackball';
+    this.arc.enabled = this.enabled && this._mode === 'arcball';
   }
 }

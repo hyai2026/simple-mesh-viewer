@@ -62,7 +62,7 @@ new ExportDialog(toolbarEl, bus);
 new StatusBar(statusEl, bus);
 
 const stage = new StageController(bus, sceneMgr.camera, viewport, models, sceneMgr.root, sceneMgr, rig);
-new StagePanel(stageSection, bus);
+new StagePanel(stageSection, bus, models);
 
 let mode: AppMode = 'analysis';
 const getMode = (): AppMode => mode;

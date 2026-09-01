@@ -1,6 +1,5 @@
-import type { MeshStats } from '../core/MeshData';
-import type { LayerKey, LayerVisibility } from '../render/MeshView';
-import { DEFAULT_COLORS } from '../render/MeshView';
+import type { LayerKey } from '../render/MeshView';
+import type { ModelRegistry } from '../render/ModelRegistry';
 import type {
   EventBus,
   StageGizmoMode,
@@ -107,14 +106,8 @@ type StageTree = StageTreeSnapshot;
 export class StagePanel {
   private bus: EventBus;
   private el: HTMLElement;
+  private models: ModelRegistry;
   private treeEl: HTMLElement;
-  private names = new Map<string, string>();
-  private statsMap = new Map<string, MeshStats>();
-  private shownState = new Map<string, boolean>();
-  private visState = new Map<string, LayerVisibility>();
-  private colorState = new Map<string, Record<LayerKey, number>>();
-  private opacityState = new Map<string, number>();
-  private pickState = new Map<string, boolean>();
   private checked = new Set<string>();
   private detailOpen = new Set<string>();
   private collapsedGroups = new Set<string>();
@@ -128,9 +121,10 @@ export class StagePanel {
   private xfReset: HTMLButtonElement;
   private xfApplied = [0, 0, 0, 0, 0, 0, 1, 1, 1];
 
-  constructor(el: HTMLElement, bus: EventBus) {
+  constructor(el: HTMLElement, bus: EventBus, models: ModelRegistry) {
     this.bus = bus;
     this.el = el;
+    this.models = models;
     el.innerHTML = TEMPLATE;
     const q = <T extends HTMLElement>(sel: string): T => el.querySelector(sel) as T;
     this.treeEl = q<HTMLElement>('#stg-tree');
@@ -195,70 +189,24 @@ export class StagePanel {
       inp.addEventListener('change', () => this.commitXf());
     }
 
-    bus.on('model-added', ({ id, name, stats }) => {
-      this.names.set(id, name);
-      this.statsMap.set(id, stats);
-      if (!this.colorState.has(id)) this.colorState.set(id, { ...DEFAULT_COLORS });
-      if (!this.opacityState.has(id)) this.opacityState.set(id, 1);
-      if (!this.pickState.has(id)) this.pickState.set(id, true);
-      const row = this.rowRefs.get(id);
-      if (row) {
-        const nameEl = row.root.querySelector('.model-name');
-        if (nameEl) nameEl.textContent = name;
-      }
-    });
     bus.on('model-removed', ({ id }) => {
-      this.names.delete(id);
       this.checked.delete(id);
-      this.shownState.delete(id);
-      this.visState.delete(id);
-      this.colorState.delete(id);
-      this.opacityState.delete(id);
-      this.pickState.delete(id);
-      this.statsMap.delete(id);
       this.detailOpen.delete(id);
     });
     bus.on('model-color-changed', ({ id, layer, color }) => {
-      const cur = this.colorState.get(id);
-      if (cur) cur[layer] = color;
       const input = this.rowRefs.get(id)?.root.querySelector<HTMLInputElement>(
         `input[type="color"][data-layer="${layer}"]`,
       );
       if (input) input.value = toHex(color);
     });
-    bus.on('model-shown-changed', ({ id, shown }) => {
-      this.shownState.set(id, shown);
-      const row = this.rowRefs.get(id);
-      if (row?.eye) {
-        row.eye.classList.toggle('on', shown);
-        row.eye.classList.toggle('off', !shown);
-      }
-      const gid = this.tree?.groups.find((g) => g.members.includes(id))?.id;
-      const grow = gid ? this.rowRefs.get(gid) : undefined;
-      const members = this.tree?.groups.find((g) => g.id === gid)?.members ?? [];
-      if (grow?.eye) {
-        const allOff = members.every((m) => this.shownState.get(m) === false);
-        grow.eye.classList.toggle('on', !allOff);
-        grow.eye.classList.toggle('off', allOff);
-      }
-    });
+    bus.on('model-shown-changed', ({ id }) => this.syncEye(id));
     bus.on('model-layer-changed', ({ id, vis }) => {
-      this.visState.set(id, vis);
       const row = this.rowRefs.get(id);
       if (row?.toggles) {
         for (const key of LAYERS) row.toggles[key].classList.toggle('off', !vis[key]);
       }
     });
-    bus.on('model-opacity-changed', ({ id, opacity }) => {
-      this.opacityState.set(id, opacity);
-      const row = this.rowRefs.get(id);
-      if (row?.alpha && document.activeElement !== row.alpha) {
-        row.alpha.value = String(Math.round(opacity * 100));
-        row.alphaVal!.textContent = `${Math.round(opacity * 100)}%`;
-      }
-    });
     bus.on('model-pickable-changed', ({ id, pickable }) => {
-      this.pickState.set(id, pickable);
       const row = this.rowRefs.get(id);
       if (row?.pickToggle) {
         row.pickToggle.classList.toggle('on', pickable);
@@ -328,6 +276,24 @@ export class StagePanel {
     }
   }
 
+  private syncEye(mid: string): void {
+    const row = this.rowRefs.get(mid);
+    const shown = this.models.get(mid)?.isShown() ?? true;
+    if (row?.eye) {
+      row.eye.classList.toggle('on', shown);
+      row.eye.classList.toggle('off', !shown);
+    }
+    row?.root.classList.toggle('model-hidden', !shown);
+    const gid = this.tree?.groups.find((g) => g.members.includes(mid))?.id;
+    const grow = gid ? this.rowRefs.get(gid) : undefined;
+    const members = this.tree?.groups.find((g) => g.id === gid)?.members ?? [];
+    if (grow?.eye) {
+      const allOff = members.every((m) => this.models.get(m)?.isShown() === false);
+      grow.eye.classList.toggle('on', !allOff);
+      grow.eye.classList.toggle('off', allOff);
+    }
+  }
+
   private renderTree(): void {
     this.rowRefs.clear();
     if (!this.tree) return;
@@ -363,7 +329,7 @@ export class StagePanel {
     const wrap = document.createElement('div');
     wrap.className = 'stage-group-row';
     wrap.dataset.id = g.id;
-    const allOff = g.members.every((m) => this.shownState.get(m) === false);
+    const allOff = g.members.every((m) => this.models.get(m)?.isShown() === false);
     wrap.innerHTML = `
       <button class="caret" title="展开/收起">${expanded ? '▾' : '▸'}</button>
       <span class="model-name" title="${escapeAttr(g.name)}">${escapeHtml(g.name)}</span>
@@ -420,13 +386,13 @@ export class StagePanel {
   }
 
   private buildModelRow(mid: string): TreeRow {
-    const name = this.names.get(mid) ?? mid;
-    const shown = this.shownState.get(mid) ?? true;
-    const vis = this.visState.get(mid);
-    const colors = this.colorState.get(mid) ?? { ...DEFAULT_COLORS };
-    const opacity = this.opacityState.get(mid) ?? 1;
-    const pickable = this.pickState.get(mid) ?? true;
-    const stats = this.statsMap.get(mid);
+    const view = this.models.get(mid);
+    const name = view?.label ?? mid;
+    const shown = view?.isShown() ?? true;
+    const vis = view?.getVisibility() ?? { points: true, edges: true, surface: true };
+    const opacity = view?.getOpacity() ?? 1;
+    const pickable = view?.isPickable() ?? true;
+    const stats = view?.stats() ?? null;
     const open = this.detailOpen.has(mid);
     const wrap = document.createElement('div');
     wrap.className = 'stage-model-wrap';
@@ -438,15 +404,15 @@ export class StagePanel {
         <input type="checkbox" class="stage-check" title="选中以成组" />
         <span class="model-name" title="${escapeAttr(name)}">${escapeHtml(name)}</span>
         <button class="icon-btn eye ${shown ? 'on' : 'off'}" title="显示/隐藏模型">${EYE_SVG_ON}${EYE_SVG_OFF}</button>
-        <button class="mini-toggle ${vis && !vis.points ? 'off' : ''}" data-layer="points" title="显示点">●点</button>
-        <button class="mini-toggle ${vis && !vis.edges ? 'off' : ''}" data-layer="edges" title="显示线">●边</button>
-        <button class="mini-toggle ${vis && !vis.surface ? 'off' : ''}" data-layer="surface" title="显示面">●面</button>
+        <button class="mini-toggle ${vis.points ? '' : 'off'}" data-layer="points" title="显示点">●点</button>
+        <button class="mini-toggle ${vis.edges ? '' : 'off'}" data-layer="edges" title="显示线">●边</button>
+        <button class="mini-toggle ${vis.surface ? '' : 'off'}" data-layer="surface" title="显示面">●面</button>
         <button class="icon-btn remove" title="移除模型">✕</button>
       </div>
       <div class="stage-colors">
-        <label class="color-chip"><input type="color" data-layer="surface" value="${toHex(colors.surface)}" /><span>面</span></label>
-        <label class="color-chip"><input type="color" data-layer="edges" value="${toHex(colors.edges)}" /><span>线</span></label>
-        <label class="color-chip"><input type="color" data-layer="points" value="${toHex(colors.points)}" /><span>点</span></label>
+        <label class="color-chip"><input type="color" data-layer="surface" value="${toHex(view?.getColor('surface') ?? 0)}" /><span>面</span></label>
+        <label class="color-chip"><input type="color" data-layer="edges" value="${toHex(view?.getColor('edges') ?? 0)}" /><span>线</span></label>
+        <label class="color-chip"><input type="color" data-layer="points" value="${toHex(view?.getColor('points') ?? 0)}" /><span>点</span></label>
       </div>
       <div class="model-detail ${open ? '' : 'hidden'}">
         <div class="kv-list">
@@ -465,8 +431,7 @@ export class StagePanel {
     `;
     const eye = wrap.querySelector('button.eye') as HTMLButtonElement;
     eye.addEventListener('click', () => {
-      const next = !eye.classList.contains('on');
-      this.shownState.set(mid, next);
+      const next = !(this.models.get(mid)?.isShown() ?? true);
       this.bus.emit('set-model-shown', { id: mid, shown: next });
     });
     const toggles: Record<LayerKey, HTMLButtonElement> = {
@@ -474,22 +439,11 @@ export class StagePanel {
       edges: wrap.querySelector('button.mini-toggle[data-layer="edges"]') as HTMLButtonElement,
       surface: wrap.querySelector('button.mini-toggle[data-layer="surface"]') as HTMLButtonElement,
     };
-    const currentVis = (): Partial<LayerVisibility> => ({
-      points: !toggles.points.classList.contains('off'),
-      edges: !toggles.edges.classList.contains('off'),
-      surface: !toggles.surface.classList.contains('off'),
-    });
     for (const key of LAYERS) {
       toggles[key].addEventListener('click', () => {
-        toggles[key].classList.toggle('off');
-        const cur = this.visState.get(mid);
-        this.visState.set(mid, {
-          points: cur?.points ?? true,
-          edges: cur?.edges ?? true,
-          surface: cur?.surface ?? true,
-          ...currentVis(),
-        });
-        this.bus.emit('set-model-layers', { id: mid, partial: currentVis() });
+        const cur = this.models.get(mid)?.getVisibility();
+        if (!cur) return;
+        this.bus.emit('set-model-layers', { id: mid, partial: { [key]: !cur[key] } });
       });
     }
     const chk = wrap.querySelector('input.stage-check') as HTMLInputElement;
@@ -528,13 +482,11 @@ export class StagePanel {
     alpha.addEventListener('input', () => {
       const pct = Number(alpha.value);
       alphaVal.textContent = `${pct}%`;
-      this.opacityState.set(mid, pct / 100);
       this.bus.emit('set-model-opacity', { id: mid, opacity: pct / 100 });
     });
     const pickToggle = wrap.querySelector('button.pick-toggle') as HTMLButtonElement;
     pickToggle.addEventListener('click', () => {
-      const next = !pickToggle.classList.contains('on');
-      this.pickState.set(mid, next);
+      const next = !(this.models.get(mid)?.isPickable() ?? true);
       this.bus.emit('set-model-pickable', { id: mid, pickable: next });
     });
     const nameEl = wrap.querySelector('.model-name') as HTMLElement;

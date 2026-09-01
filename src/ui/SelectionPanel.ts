@@ -1,6 +1,7 @@
 import type { MeshStats } from '../core/MeshData';
 import type { ModelRegistry } from '../render/ModelRegistry';
 import type { PickHit } from '../render/PickingEngine';
+import { escapeHtml } from './dom';
 import type { EventBus } from './EventBus';
 
 const TEMPLATE = `
@@ -66,8 +67,4 @@ export class SelectionPanel {
       <div class="detail-line model-line">${escapeHtml(modelName)}</div>
       <div class="detail-line">[ ${hit.corners.join(', ')} ]</div>`;
   }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }

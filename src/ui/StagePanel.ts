@@ -1,5 +1,6 @@
 import type { LayerKey } from '../render/MeshView';
 import type { ModelRegistry } from '../render/ModelRegistry';
+import { escapeAttr, escapeHtml } from './dom';
 import type {
   EventBus,
   StageGizmoMode,
@@ -587,12 +588,4 @@ function round3(v: number): number {
 
 function toHex(n: number): string {
   return `#${n.toString(16).padStart(6, '0')}`;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-}
-
-function escapeAttr(s: string): string {
-  return escapeHtml(s);
 }

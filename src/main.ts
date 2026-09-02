@@ -126,9 +126,9 @@ bus.on('set-lighting', (partial) => {
 });
 
 bus.on('remove-model', ({ id }) => {
-  stage.onModelRemoved(id);
   if (!models.remove(id)) return;
   picking.unregister(id);
+  stage.onModelRemoved(id);
   bus.emit('model-removed', { id });
   if (mode === 'stage') {
     if (stage.isStaged()) rig.fitAll(stage.box());

@@ -130,11 +130,6 @@ bus.on('remove-model', ({ id }) => {
   picking.unregister(id);
   stage.onModelRemoved(id);
   bus.emit('model-removed', { id });
-  if (mode === 'stage') {
-    if (stage.isStaged()) rig.fitAll(stage.box());
-  } else {
-    interaction.resetView();
-  }
 });
 
 bus.on('set-model-layers', ({ id, partial }) => {
